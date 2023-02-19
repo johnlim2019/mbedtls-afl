@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "cipher.h": "c",
+    "md.h": "c",
+    "platform.h": "c",
+    "stdio.h": "c",
+    "stdlib.h": "c",
+    "aes.h": "c"
+  }
+}
