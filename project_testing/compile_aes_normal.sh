@@ -2,4 +2,8 @@
 date
 pwd
 echo compiling...
-gcc -I../include ./crypt_test.c -o crypt_test ../library/*.c
+if gcc -I../include ./crypt_test.c -o crypt_test_normal ../library/*.c; then
+    ./crypt_test_normal ./plaintext_seed/plain.txt ./options.txt
+else    
+    echo Compile Failed.
+fi
