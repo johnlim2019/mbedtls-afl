@@ -61,10 +61,10 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char text[],
     unsigned char decipher[MAX_LINE];
     // printf("init");
     mbedtls_aes_setkey_enc(&aes, key, numBytes * 8);
-    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, strlen((const char *)(text)), iv, text, ciphered);
+    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, sizeof((const char *) text), iv, text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
     mbedtls_aes_setkey_dec(&aes2, key, numBytes * 8);
-    mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, strlen((const char *)(ciphered)), iv1, ciphered, decipher);
+    mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, sizeof((const char *) ciphered), iv1, ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     mbedtls_aes_free(&aes2);
@@ -122,9 +122,9 @@ static int aesCfb8(unsigned char key[], unsigned char iv[], unsigned char text[]
     unsigned char decipher[MAX_LINE];
     // printf("init");
     mbedtls_aes_setkey_enc(&aes, key, numBytes * 8);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, strlen((const char *)(text)), iv, text, ciphered);
+    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, sizeof((const char *) text), iv, text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)(ciphered)), iv1, ciphered, decipher);
+    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, sizeof((const char *) ciphered), iv1, ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
 
@@ -146,9 +146,9 @@ static int aesOfb(unsigned char key[], unsigned char iv[], unsigned char text[],
     unsigned char ciphered[CIPHERTEXT_LEN];
     unsigned char decipher[MAX_LINE];
     mbedtls_aes_setkey_enc(&aes, key, numBytes * 8);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, strlen((const char *)(text)), iv, text, ciphered);
+    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, sizeof((const char *) text), iv, text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)(ciphered)), iv1, ciphered, decipher);
+    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, sizeof((const char *) ciphered), iv1, ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     if (strcmp(decipher, text) != 0)
@@ -192,6 +192,11 @@ int main(int argc, char *argv[])
     }
     fread(text, sizeof(char), numBytes, file);
     fclose(file);
+    if (numBytes > 32){
+        printf("Text is larger than blocksize, and cannot be encrypted\n");
+        exit(EXIT_FAILURE);
+    }
+
 
     // open options file
     char *optionsPath = argv[2];
