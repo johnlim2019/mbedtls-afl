@@ -160,6 +160,10 @@ static int aesOfb(unsigned char key[], unsigned char iv[], unsigned char text[],
     }
     return EXIT_SUCCESS;
 }
+static int aesCtr()
+{
+    return EXIT_SUCCESS;
+}
 
 int main(int argc, char *argv[])
 {
