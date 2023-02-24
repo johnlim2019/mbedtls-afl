@@ -125,6 +125,7 @@ static int aesCfb8(unsigned char key[], unsigned char iv[], unsigned char text[]
     unsigned char iv1[IV_LEN];
     copyArr(iv, iv1, KEY_LEN);
     mbedtls_aes_context aes;
+    mbedtls_aes_init(&aes);
     // printf("init");
     unsigned char ciphered[CIPHERTEXT_LEN];
     unsigned char decipher[MAX_LINE];
@@ -151,14 +152,18 @@ static int aesOfb(unsigned char key[], unsigned char iv[], unsigned char text[],
 {
     printf("aesOfb()\n");
     unsigned char iv1[IV_LEN];
+    printf("init aes");
     copyArr(iv, iv1, KEY_LEN);
+    printf("init aes");
     mbedtls_aes_context aes;
+    mbedtls_aes_init(&aes);
+    printf("init aes");
     unsigned char ciphered[CIPHERTEXT_LEN];
     unsigned char decipher[MAX_LINE];
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv, text, ciphered);
+    mbedtls_aes_crypt_ofb(&aes, numBytes, 0, iv, text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
+    mbedtls_aes_crypt_ofb(&aes, numBytes, 0, iv, ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     if (strcmp(decipher, text) != 0)
@@ -175,6 +180,7 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
 {
     printf("aesCtr()\n");
     mbedtls_aes_context aes;
+    aesOfb(key, iv, text, numBytes);
     unsigned char ciphered[CIPHERTEXT_LEN];
     unsigned char decipher[MAX_LINE];
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
@@ -278,12 +284,12 @@ int main(int argc, char *argv[])
     printf("Cipher: %s\n", cipher);
     printf("Key: %s\nKeysize: %d\n", key, (int)strlen(key));
     printf("IV: %s\nivSize: %d\n", iv, (int)strlen(iv));
-    
+
     aesEcb(key, text, numBytes);
     aesCbc(key, iv, text, numBytes);
     aesCfb8(key, iv, text, numBytes);
-    aesOfb(key, iv, text, numBytes);
     aesCtr(key, iv, text, numBytes);
+    // aesOfb(key, iv, text, numBytes);
 
     if (strcmp(cipher, "CBC") == 0)
     {
