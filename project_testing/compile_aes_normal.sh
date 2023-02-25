@@ -12,7 +12,11 @@ if gcc -I../include ./crypt_test.c -o crypt_test_normal ../library/*.c; then
             echo try ecb;
             if ./crypt_test_normal ./plaintext_seed/plain.txt ./options_seed/ecb.txt; then
                 echo ecb completed;
-                echo ALL TESTS PASSED;             
+                echo try cfb128;
+                if ./crypt_test_normal ./plaintext_seed/plain.txt ./options_seed/cfb128.txt; then
+                    echo cfb128 completed;
+                    echo ALL TESTS PASSED;             
+                fi
             fi
         fi
     fi

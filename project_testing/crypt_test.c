@@ -68,8 +68,8 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char text[],
     mbedtls_aes_init(&aes);
     mbedtls_aes_init(&aes2);
     // printf("init");
-    unsigned char ciphered[CIPHERTEXT_LEN];
-    unsigned char decipher[MAX_LINE];
+    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
     // printf("init");
     int success = mbedtls_aes_setkey_enc(&aes, key, (unsigned int)(KEY_LEN * 8));
     if (success != 0)
@@ -85,6 +85,8 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char text[],
     mbedtls_aes_free(&aes);
     mbedtls_aes_free(&aes2);
     checkResult(decipher, text);
+    free(ciphered);
+    free(decipher);
     printf("exiting aesCbc()\n\n");
     return EXIT_SUCCESS;
 }
@@ -98,8 +100,8 @@ static int aesEcb(unsigned char key[], unsigned char text[], int numBytes)
     mbedtls_aes_init(&aes2);
 
     // printf("init");
-    unsigned char ciphered[CIPHERTEXT_LEN];
-    unsigned char decipher[MAX_LINE];
+    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
     // printf("init");
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
     mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_ENCRYPT, text, ciphered);
@@ -112,6 +114,8 @@ static int aesEcb(unsigned char key[], unsigned char text[], int numBytes)
     mbedtls_aes_free(&aes2);
     // printf("%s",texttest);
     checkResult(decipher, texttest);
+    free(ciphered);
+    free(decipher);
     printf("exiting aesEcb()\n\n");
     return EXIT_SUCCESS;
 }
@@ -122,17 +126,20 @@ static int aesCfb8(unsigned char key[], unsigned char iv[], unsigned char text[]
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
     // printf("init");
-    unsigned char ciphered[CIPHERTEXT_LEN];
-    unsigned char decipher[MAX_LINE];
-    unsigned char iv1[IV_LEN];
-    copyArr(iv, iv1, IV_LEN);
+    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+    unsigned char *iv_buff = calloc(1, (sizeof(unsigned char) * IV_LEN));
+    copyArr(iv, iv_buff, IV_LEN);
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv1, text, ciphered);
+    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv_buff, (const char *)text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
+    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv_buff, (const char *)ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     checkResult(decipher, text);
+    free(iv_buff);
+    free(ciphered);
+    free(decipher);
     printf("exiting aesCfb8()\n\n");
     return EXIT_SUCCESS;
 }
@@ -145,37 +152,46 @@ static int aesCfb128(unsigned char key[], unsigned char iv[], unsigned char text
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
     // printf("init");
-    unsigned char ciphered[CIPHERTEXT_LEN];
-    unsigned char decipher[MAX_LINE];
+    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
     // printf("init");
-    size_t iv_off = IV_LEN;
+    size_t *iv_off = calloc(1, sizeof(size_t));
+    *iv_off = 0;
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_ENCRYPT, numBytes, &iv_off, iv, text, ciphered);
+    mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv_off, iv, (const char *)text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), &iv_off, iv1, ciphered, decipher);
+    mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv_off, iv1, (const char *)ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     checkResult(decipher, text);
+    free(iv_off);
+    free(ciphered);
+    free(decipher);
     printf("exiting aesCfb128()\n\n");
     return EXIT_SUCCESS;
 }
 
-static int aesOfb(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
+static int aesOfb(unsigned char key[], unsigned char iv[16], unsigned char text[], int numBytes)
 {
     printf("aesOfb()\n");
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
-    unsigned char ciphered[CIPHERTEXT_LEN];
-    unsigned char decipher[MAX_LINE];
-    size_t iv_off = IV_LEN;
+    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+    size_t *iv_off = calloc(1, sizeof(size_t));
+    *iv_off = 0;
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_ofb(&aes, numBytes, &iv_off, iv, text, ciphered);
+    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char*)text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_ofb(&aes, numBytes, &iv_off, iv, ciphered, decipher);
+    *iv_off = 0;
+    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char*)ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     checkResult(decipher, text);
     printf("exiting aesOfb()\n\n");
+    free(iv_off);
+    free(ciphered);
+    free(decipher);
     return EXIT_SUCCESS;
 }
 static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
@@ -183,15 +199,13 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
     printf("aesCtr()\n");
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
-    unsigned char ciphered[CIPHERTEXT_LEN];
-    unsigned char decipher[MAX_LINE];
+    unsigned char ciphered[CIPHERTEXT_LEN]; // = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    unsigned char decipher[MAX_LINE];       // = calloc(1, (sizeof(unsigned char) * MAX_LINE));
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
     unsigned char nonce_counter[16];
     unsigned char stream_block[16];
     unsigned char nonce_counter1[16];
     unsigned char stream_block1[16];
-    size_t iv_offset = 0;
-    size_t iv_offset1 = 0;
     size_t nc_off = 0;
     size_t nc_off1 = 0;
     mbedtls_aes_crypt_ctr(&aes, numBytes, &nc_off, nonce_counter, stream_block, text, ciphered);
@@ -200,6 +214,8 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     checkResult(decipher, text);
+    // free(ciphered);
+    // free(decipher);
     printf("exiting aesCtr()\n\n");
     return EXIT_SUCCESS;
 }
@@ -268,6 +284,19 @@ int main(int argc, char *argv[])
     unsigned char *key = strtok((char *)keyArr, "\n");
     unsigned char *iv = strtok((char *)ivArr, "\n");
 
+    // check key and iv length
+    if (((int)strlen(key) != 16))
+    {
+        printf("keysize: %d\n", (int)strlen(key));
+        printf("Illegal key size\n");
+        exit(1);
+    }
+    if ((int)strlen(iv) != 16)
+    {
+        printf("Illegal iv size\n");
+        exit(1);
+    }
+
     numBytes = (int)strlen(text);
     printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
     printf("Cipher: %s\n", cipher);
@@ -276,10 +305,10 @@ int main(int argc, char *argv[])
 
     // aesEcb(key, text, numBytes);
     // aesCbc(key, iv, text, numBytes);
-    // aesOfb(key, iv, text, numBytes);
     // aesCtr(key, iv, text, numBytes);
     // aesCfb128(key, iv, text, numBytes);
     // aesCfb8(key, iv, text, numBytes);
+    // aesOfb(key, iv, text, numBytes);
 
     if (strcmp(cipher, "CBC") == 0)
     {
@@ -292,6 +321,18 @@ int main(int argc, char *argv[])
     else if (strcmp(cipher, "CTR") == 0)
     {
         aesCtr(key, iv, text, numBytes);
+    }
+    else if (strcmp(cipher, "CFB128") == 0)
+    {
+        aesCfb128(key, iv, text, numBytes);
+    }
+    else if (strcmp(cipher, "CFB8") == 0)
+    {
+        aesCfb8(key, iv, text, numBytes);
+    }
+    else if (strcmp(cipher, "OFB") == 0)
+    {
+        aesOfb(key, iv, text, numBytes);
     }
     else // cipher was not recognised
     {
