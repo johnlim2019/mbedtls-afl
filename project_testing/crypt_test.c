@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "mbedtls/aes.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +48,7 @@ int checkResult(unsigned char *decipher, unsigned char *text)
     }
 }
 
-static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
+static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
 {
     printf("aes_cbc()\n");
     // assert(numBytes%16 ==0);
@@ -61,8 +59,8 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char text[],
         exit(EXIT_FAILURE);
     }
     printf("Input is multiple of 16\n");
-    unsigned char iv1[IV_LEN];
-    copyArr(iv, iv1, IV_LEN);
+    // unsigned char iv1[IV_LEN];
+    // copyArr(iv, iv1, IV_LEN);
     mbedtls_aes_context aes;
     mbedtls_aes_context aes2;
     mbedtls_aes_init(&aes);
@@ -181,10 +179,10 @@ static int aesOfb(unsigned char key[], unsigned char iv[16], unsigned char text[
     size_t *iv_off = calloc(1, sizeof(size_t));
     *iv_off = 0;
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char*)text, ciphered);
+    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char *)text, ciphered);
     printf("Ciphertext: %s\n", ciphered);
     *iv_off = 0;
-    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char*)ciphered, decipher);
+    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char *)ciphered, decipher);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     checkResult(decipher, text);
@@ -270,11 +268,14 @@ int main(int argc, char *argv[])
     unsigned char *cipherArr[MAX_LINE];
     unsigned char *keyArr[MAX_LINE];
     unsigned char *ivArr[MAX_LINE];
+    unsigned char *ivArr2[MAX_LINE];
     strcpy((char *)cipherArr, line_buf);
     characters = getline(&line_buf, &bufsize, optionsFile);
     strcpy((char *)keyArr, line_buf);
     characters = getline(&line_buf, &bufsize, optionsFile);
     strcpy((char *)ivArr, line_buf);
+    characters = getline(&line_buf, &bufsize, optionsFile);
+    strcpy((char *)ivArr2, line_buf);
     // trash
     free(line_buf);
     line_buf = NULL;
@@ -283,9 +284,10 @@ int main(int argc, char *argv[])
     unsigned char *cipher = strtok((char *)cipherArr, "\n");
     unsigned char *key = strtok((char *)keyArr, "\n");
     unsigned char *iv = strtok((char *)ivArr, "\n");
+    unsigned char *iv2 = strtok((char *)ivArr2, "\n");
 
     // check key and iv length
-    if (((int)strlen(key) != 16))
+    if (!(((int)strlen(key) == 16) || ((int)strlen(key) == 24) || ((int)strlen(key) == 32)))
     {
         printf("keysize: %d\n", (int)strlen(key));
         printf("Illegal key size\n");
@@ -296,7 +298,11 @@ int main(int argc, char *argv[])
         printf("Illegal iv size\n");
         exit(1);
     }
-
+    if ((int)strlen(iv2) != 16)
+    {
+        printf("Illegal iv2 size\n");
+        exit(1);
+    }
     numBytes = (int)strlen(text);
     printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
     printf("Cipher: %s\n", cipher);
@@ -312,7 +318,7 @@ int main(int argc, char *argv[])
 
     if (strcmp(cipher, "CBC") == 0)
     {
-        aesCbc(key, iv, text, numBytes);
+        aesCbc(key, iv, iv2, text, numBytes);
     }
     else if (strcmp(cipher, "ECB") == 0)
     {
