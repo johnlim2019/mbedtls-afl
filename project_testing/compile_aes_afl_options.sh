@@ -2,7 +2,7 @@
 date
 pwd
 echo "compiling for afl..."
-if $HOME/AFL/afl-g++ -I../include ./crypt_test.c -o crypt_test_afl ../library/*.c; then
+if $HOME/AFL/afl-clang -I../include ./crypt_test.c -o crypt_test_afl ../library/*.c; then
     echo Try cbc
     if ./crypt_test_afl ./plaintext_seed/plain.txt ./options_seed/cbc.txt; then 
         echo CBC completed;
@@ -16,7 +16,7 @@ if $HOME/AFL/afl-g++ -I../include ./crypt_test.c -o crypt_test_afl ../library/*.
                 if ./crypt_test_afl ./plaintext_seed/plain.txt ./options_seed/cfb128.txt; then
                     echo cfb128 completed;
                     echo ALL TESTS PASSED;             
-                    $HOME/AFL/afl-fuzz -m 1000 -i ./plaintext_seed/ -o ./results_aes -- ./crypt_test_afl ./plaintext_seed/plain.txt @@;                
+                    $HOME/AFL/afl-fuzz -m 1000 -i ./options_seed/ -o ./results_aes -- ./crypt_test_afl ./plaintext_seed/plain.txt @@;                
                 fi
             fi
         fi
