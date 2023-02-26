@@ -57,3 +57,7 @@ massif-*
 /TAGS
 /cscope*.out
 /tags
+
+
+# AFL results
+/project_testing/results_aes/*
