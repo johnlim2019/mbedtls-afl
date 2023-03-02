@@ -1,0 +1,30 @@
+start_time        : 1677735329
+last_update       : 1677735374
+fuzzer_pid        : 19741
+cycles_done       : 0
+execs_done        : 29
+execs_per_sec     : 0.00
+paths_total       : 1
+paths_favored     : 0
+paths_found       : 0
+paths_imported    : 0
+max_depth         : 1
+cur_path          : 0
+pending_favs      : 0
+pending_total     : 1
+variable_paths    : 1
+stability         : 0.00%
+bitmap_cvg        : 0.00%
+unique_crashes    : 0
+unique_hangs      : 0
+last_path         : 0
+last_crash        : 0
+last_hang         : 0
+execs_since_crash : 29
+exec_timeout      : 5000
+afl_banner        : test_d_afl
+afl_version       : 2.57b
+target_mode       : default
+command_line      : /home/limjieshengubuntu/AFL/afl-fuzz -m 1000 -t 5000+ -i ./plaintext_seed/ -o ./results_rsa -- ./test_d_afl ./plaintext_seed/plain.txt
+slowest_exec_ms   : 4867
+peak_rss_mb       : not available while afl is running
