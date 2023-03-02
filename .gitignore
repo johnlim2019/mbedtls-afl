@@ -61,3 +61,5 @@ massif-*
 
 # AFL results
 /project_testing/results_aes/*
+/project_testing/results_rsa/*
+/project_testing/*.txt
