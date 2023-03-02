@@ -6,11 +6,14 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <assert.h>
+#include <errno.h>
 
 #define CIPHERTEXT_LEN 1024
 #define MAX_LINE 1024
 #define KEY_LEN 16
 #define IV_LEN 16
+
+extern int errno;
 
 char *sliceString(char *str, int start, int end)
 {
@@ -44,7 +47,7 @@ int checkResult(unsigned char *decipher, unsigned char *text)
         printf("error\n");
         printf("Expected: %s\n", text);
         printf("Actual: %s\n", decipher);
-        exit(EXIT_FAILURE);
+        assert(strcmp(decipher, text) == 0);
     }
 }
 
@@ -169,40 +172,19 @@ static int aesCfb128(unsigned char key[], unsigned char iv[], unsigned char text
     return EXIT_SUCCESS;
 }
 
-static int aesOfb(unsigned char key[], unsigned char iv[16], unsigned char text[], int numBytes)
-{
-    printf("aesOfb()\n");
-    mbedtls_aes_context aes;
-    mbedtls_aes_init(&aes);
-    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
-    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
-    size_t *iv_off = calloc(1, sizeof(size_t));
-    *iv_off = 0;
-    mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char *)text, ciphered);
-    printf("Ciphertext: %s\n", ciphered);
-    *iv_off = 0;
-    mbedtls_aes_crypt_ofb(&aes, (size_t)numBytes, iv_off, iv, (const unsigned char *)ciphered, decipher);
-    printf("Deciphered: %s\n", decipher);
-    mbedtls_aes_free(&aes);
-    checkResult(decipher, text);
-    printf("exiting aesOfb()\n\n");
-    free(iv_off);
-    free(ciphered);
-    free(decipher);
-    return EXIT_SUCCESS;
-}
 static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
 {
     printf("aesCtr()\n");
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
-    unsigned char ciphered[CIPHERTEXT_LEN]; // = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
-    unsigned char decipher[MAX_LINE];       // = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+    unsigned char ciphered[CIPHERTEXT_LEN];
+    unsigned char decipher[MAX_LINE];
+    // unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    // unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
     mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    unsigned char nonce_counter[16];
+    unsigned char nonce_counter[16] = {0};
     unsigned char stream_block[16];
-    unsigned char nonce_counter1[16];
+    unsigned char nonce_counter1[16] = {0};
     unsigned char stream_block1[16];
     size_t nc_off = 0;
     size_t nc_off1 = 0;
@@ -218,103 +200,161 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
     return EXIT_SUCCESS;
 }
 
+unsigned char generate_key(int x)
+{
+    time_t t;
+    const char *string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$^&*()_+-=~[]\\;'\",./{}|:?<>";
+    unsigned char key[x];
+    srand((unsigned)time(&t));
+    for (int i = 0; i < x; i++)
+    {
+        int r = rand() % strlen(string);
+        key[i] = string[r];
+        // printf("%d,\n",r,string[r]);
+    }
+    printf("%s", key);
+    return *key;
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+
+    if (argc > 3 || argc == 1)
     {
-        ("Command argument syntax err.\n");
-        ("Eg: ./crypt_test ./plain.txt ./options.txt\n");
+        printf("Command argument syntax err.\n");
+        printf("Eg: ./crypt_test ./plain.txt ./options.txt\n");
+        printf("Eg: ./crypt_test ./plain + options.txt\n");
     }
     printf("\nStarted main function\n");
-    char *path = argv[1];
-    FILE *file = fopen(path, "r");
-    if (!file)
-    {
-        perror(path);
-        exit(EXIT_FAILURE);
-    }
-    printf("Reading plain text file at %s\n", path);
-
+    // declare the variables
     long numBytes;
     unsigned char *text;
+    unsigned char *cipher;
+    unsigned char *key;
+    unsigned char *iv;
+    unsigned char *iv2;
 
-    // we are taking the whole file as a single string input
-    fseek(file, 0L, SEEK_END);
-    numBytes = ftell(file);
-    fseek(file, 0L, SEEK_SET);
-    text = (char *)calloc(numBytes, sizeof(char));
-    if (text == NULL)
+    if (argc == 3)
     {
-        exit(EXIT_FAILURE);
-    }
-    fread(text, sizeof(char), numBytes, file);
-    fclose(file);
+        char *path = argv[1];
+        FILE *file = fopen(path, "r");
+        if (!file)
+        {
+            perror(path);
+            exit(EXIT_FAILURE);
+        }
+        printf("Reading plain text file at %s\n", path);
 
-    // open options file
-    char *optionsPath = argv[2];
-    FILE *optionsFile = fopen(optionsPath, "r");
-    printf("Reading options file at %s\n", optionsPath);
-    if (!optionsFile)
+        // we are taking the whole file as a single string input
+        fseek(file, 0L, SEEK_END);
+        numBytes = ftell(file);
+        fseek(file, 0L, SEEK_SET);
+        text = (char *)calloc(numBytes, sizeof(char));
+        if (text == NULL)
+        {
+            exit(EXIT_FAILURE);
+        }
+        fread(text, sizeof(char), numBytes, file);
+        fclose(file);
+
+        // open options file
+        char *optionsPath = argv[2];
+        FILE *optionsFile = fopen(optionsPath, "r");
+        printf("Reading options file at %s\n", optionsPath);
+        if (!optionsFile)
+        {
+            perror(optionsPath);
+            exit(EXIT_FAILURE);
+        }
+        char *line_buf = NULL;
+        int line_count = 0;
+        size_t bufsize = 32;
+        size_t characters;
+        unsigned char *cipherArr[MAX_LINE];
+        unsigned char *keyArr[MAX_LINE];
+        unsigned char *ivArr[MAX_LINE];
+        unsigned char *ivArr2[MAX_LINE];
+        // get first three lines to get the three options, cipher, iv1, iv2
+        characters = getline(&line_buf, &bufsize, optionsFile);
+        strcpy((char *)cipherArr, line_buf);
+        characters = getline(&line_buf, &bufsize, optionsFile);
+        strcpy((char *)keyArr, line_buf);
+        characters = getline(&line_buf, &bufsize, optionsFile);
+        strcpy((char *)ivArr, line_buf);
+        characters = getline(&line_buf, &bufsize, optionsFile);
+        strcpy((char *)ivArr2, line_buf);
+        // trash
+        free(line_buf);
+        line_buf = NULL;
+
+        // drop the line break and assign the values to the global variables.
+        cipher = strtok((char *)cipherArr, "\n");
+        key = strtok((char *)keyArr, "\n");
+        iv = strtok((char *)ivArr, "\n");
+        iv2 = strtok((char *)ivArr2, "\n");
+    }
+    else if (argc == 2)
     {
-        perror(path);
-        exit(EXIT_FAILURE);
-    }
-    char *line_buf = NULL;
-    int line_count = 0;
-    size_t bufsize = 32;
-    size_t characters;
-    // get first three lines to get the three options
-    characters = getline(&line_buf, &bufsize, optionsFile);
-    unsigned char *cipherArr[MAX_LINE];
-    unsigned char *keyArr[MAX_LINE];
-    unsigned char *ivArr[MAX_LINE];
-    unsigned char *ivArr2[MAX_LINE];
-    strcpy((char *)cipherArr, line_buf);
-    characters = getline(&line_buf, &bufsize, optionsFile);
-    strcpy((char *)keyArr, line_buf);
-    characters = getline(&line_buf, &bufsize, optionsFile);
-    strcpy((char *)ivArr, line_buf);
-    characters = getline(&line_buf, &bufsize, optionsFile);
-    strcpy((char *)ivArr2, line_buf);
-    // trash
-    free(line_buf);
-    line_buf = NULL;
+        // only one file contain all values.
+        // open combined file
+        char *path = argv[1];
+        FILE *file = fopen(path, "r");
+        printf("Reading options file at %s\n", path);
+        if (!file)
+        {
+            perror(path);
+            return EXIT_FAILURE;
+        }
+        // get plaintext
+        fseek(file, 0L, SEEK_END);
+        numBytes = ftell(file);
+        fseek(file, 0L, SEEK_SET);
+        text = (char *)calloc(numBytes, sizeof(char));
+        fread(text, sizeof(char), numBytes, file);
+        fclose(file);
+        // printf("%s\n",text);
+        // printf("%d\n",(int)strlen(text));
+        const char *needle = "\nendplain\n";
+        char *pos = strstr(text, needle);
+        if (pos == NULL)
+        {
+            printf("error in seed file\n");
+            return 1;
+        }
+        *pos = '\0';
+        printf("%s\n", text);
 
-    // drop the line break
-    unsigned char *cipher = strtok((char *)cipherArr, "\n");
-    unsigned char *key = strtok((char *)keyArr, "\n");
-    unsigned char *iv = strtok((char *)ivArr, "\n");
-    unsigned char *iv2 = strtok((char *)ivArr2, "\n");
+        // get ops
+        char *optext = pos + strlen(needle);
+        printf("%s\n", optext);
+        // options
+        cipher = strtok(optext, "\n");
+        key = strtok(NULL, "\n");
+        iv = strtok(NULL, "\n");
+        iv2 = strtok(NULL, "\n");
+
+        printf("exiting reading of file block\n");
+    }
 
     // check key and iv length
     if (!(((int)strlen(key) == 16) || ((int)strlen(key) == 24) || ((int)strlen(key) == 32)))
     {
         printf("keysize: %d\n", (int)strlen(key));
         printf("Illegal key size\n");
-        exit(1);
     }
     if ((int)strlen(iv) != 16)
     {
         printf("Illegal iv size\n");
-        exit(1);
     }
     if ((int)strlen(iv2) != 16)
     {
         printf("Illegal iv2 size\n");
-        exit(1);
     }
     numBytes = (int)strlen(text);
     printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
     printf("Cipher: %s\n", cipher);
     printf("Key: %s\nKeysize: %d\n", key, (int)strlen(key));
     printf("IV: %s\nivSize: %d\n\n", iv, (int)strlen(iv));
-
-    // aesEcb(key, text, numBytes);
-    // aesCbc(key, iv, text, numBytes);
-    // aesCtr(key, iv, text, numBytes);
-    // aesCfb128(key, iv, text, numBytes);
-    // aesCfb8(key, iv, text, numBytes);
-    // aesOfb(key, iv, text, numBytes);
 
     if (strcmp(cipher, "CBC") == 0)
     {
@@ -336,13 +376,10 @@ int main(int argc, char *argv[])
     {
         aesCfb8(key, iv, text, numBytes);
     }
-    else if (strcmp(cipher, "OFB") == 0)
-    {
-        aesOfb(key, iv, text, numBytes);
-    }
     else // cipher was not recognised
     {
         printf("cipher code not recognised");
+        assert(1 == 0);
         return EXIT_FAILURE;
     }
     printf("exit successfully\n");

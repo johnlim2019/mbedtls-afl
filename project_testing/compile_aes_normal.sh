@@ -15,7 +15,11 @@ if gcc -I../include ./crypt_test.c -o crypt_test_normal ../library/*.c; then
                 echo try cfb128;
                 if ./crypt_test_normal ./plaintext_seed/plain.txt ./options_seed/cfb128.txt; then
                     echo cfb128 completed;
-                    echo ALL TESTS PASSED;             
+                    echo try combined ;
+                    if ./crypt_test_normal ./aes_combined_seed/aes_combined_cbc.txt; then
+                        echo combined cbc completed;
+                        echo ALL TESTS PASSED;             
+                    fi
                 fi
             fi
         fi
