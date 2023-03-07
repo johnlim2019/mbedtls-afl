@@ -6,14 +6,12 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <assert.h>
-#include <errno.h>
 
 #define CIPHERTEXT_LEN 1024
 #define MAX_LINE 1024
 #define KEY_LEN 16
 #define IV_LEN 16
 
-extern int errno;
 
 char *sliceString(char *str, int start, int end)
 {
@@ -203,6 +201,7 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
 unsigned char generate_key(int x)
 {
     time_t t;
+
     const char *string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$^&*()_+-=~[]\\;'\",./{}|:?<>";
     unsigned char key[x];
     srand((unsigned)time(&t));
@@ -214,6 +213,35 @@ unsigned char generate_key(int x)
     }
     printf("%s", key);
     return *key;
+}
+
+char *flip_bit_mutator(unsigned char *x)
+{
+    int length = strlen((const char *)x);
+    char *xor = calloc(1,length);
+    for (int i = 0; i < length; i++)
+    {
+        xor[i] = (char)(x[i] ^ 0xFF);
+    }
+    // printf("%s\n", xor);
+    return xor;
+}
+
+char *swap_mutator(unsigned char *x)
+{
+    int length = strlen((const char *)x);
+    char *y = calloc(1,length);
+    strcpy(y, (const char *)x);
+    char z = 0;
+    for (int i = 0; i < length; i++)
+    {
+        int j = rand() % length;
+        z = y[i];
+        y[i] = y[j];
+        y[j] = z;
+    }
+    // printf("%s", y);
+    return y;
 }
 
 int main(int argc, char *argv[])
