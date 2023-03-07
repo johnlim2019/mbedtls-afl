@@ -59,5 +59,8 @@ massif-*
 /tags
 
 
-# AFL results
+# AFL results and binaris
 /project_testing/results_aes/*
+/project_testing/results_rsa/*
+/project_testing/*.txt
+/project_testing/*

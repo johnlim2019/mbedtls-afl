@@ -5,6 +5,7 @@
     "platform.h": "c",
     "stdio.h": "c",
     "stdlib.h": "c",
-    "aes.h": "c"
-  }
+    "aes.h": "c",
+    "arraylist.h": "c"
+}
 }
