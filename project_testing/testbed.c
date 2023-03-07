@@ -1,4 +1,5 @@
 #include "mbedtls/aes.h"
+#include "arraylist.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -205,8 +206,12 @@ char *swap_mutator(unsigned char *x)
 
 int main(int argc, char const *argv[])
 {
-
+    arraylist* seedQ = arraylist_create();
     unsigned char *x = "hellowthere";
+    arraylist_add(seedQ,x);
+    printf("seedQ get %s\n",arraylist_get(seedQ,0));
+    arraylist_pop(seedQ);
+    printf("after calling pop %d\n",arraylist_size(seedQ));
     printf("orginal str: %s\n", x);
     char *z = flip_bit_mutator(x);
     printf("bit flip mutator: %s\n", z);
