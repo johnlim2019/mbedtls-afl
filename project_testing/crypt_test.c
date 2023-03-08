@@ -12,7 +12,6 @@
 #define KEY_LEN 16
 #define IV_LEN 16
 
-
 char *sliceString(char *str, int start, int end)
 {
 
@@ -40,12 +39,12 @@ int copyArr(unsigned char iv1[], unsigned char iv2[], int size)
 }
 int checkResult(unsigned char *decipher, unsigned char *text)
 {
-    if (memcmp(decipher, text,sizeof(decipher)) != 0)
+    if (memcmp(decipher, text, sizeof(decipher)) != 0)
     {
         printf("error\n");
         printf("Expected: %s\n", text);
         printf("Actual: %s\n", decipher);
-        assert(strcmp(decipher, text) == 0);
+        assert(memcmp(decipher, text, sizeof(decipher)) == 0);
     }
 }
 
@@ -118,7 +117,6 @@ static int aesEcb(unsigned char key[], unsigned char text[], int numBytes)
     printf("exiting aesEcb()\n\n");
     return EXIT_SUCCESS;
 }
-
 
 static int aesCfb128(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
 {
@@ -195,7 +193,7 @@ unsigned char generate_key(int x)
 char *flip_bit_mutator(unsigned char *x)
 {
     int length = strlen((const char *)x);
-    char *xor = calloc(1,length);
+    char * xor = calloc(1, length);
     for (int i = 0; i < length; i++)
     {
         xor[i] = (char)(x[i] ^ 0xFF);
@@ -207,7 +205,7 @@ char *flip_bit_mutator(unsigned char *x)
 char *swap_mutator(unsigned char *x)
 {
     int length = strlen((const char *)x);
-    char *y = calloc(1,length);
+    char *y = calloc(1, length);
     strcpy(y, (const char *)x);
     char z = 0;
     for (int i = 0; i < length; i++)
