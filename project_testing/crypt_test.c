@@ -247,6 +247,7 @@ char *swap_mutator(unsigned char *x)
 int main(int argc, char *argv[])
 {
 
+    
     if (argc > 3 || argc == 1)
     {
         printf("Command argument syntax err.\n");
