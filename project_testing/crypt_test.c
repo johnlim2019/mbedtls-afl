@@ -1,4 +1,6 @@
 #include "mbedtls/aes.h"
+#include "arraylist.h"
+#include "hashtable.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,12 +8,18 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #define CIPHERTEXT_LEN 1024
 #define MAX_LINE 1024
 #define KEY_LEN 16
 #define IV_LEN 16
 
+typedef struct BasicTuple
+{
+    char prev;
+    char curr;
+} BasicTuple;
 
 char *sliceString(char *str, int start, int end)
 {
@@ -45,23 +53,17 @@ int checkResult(unsigned char *decipher, unsigned char *text)
         printf("error\n");
         printf("Expected: %s\n", text);
         printf("Actual: %s\n", decipher);
-        assert(strcmp(decipher, text) == 0);
+        return EXIT_FAILURE;
     }
+    return EXIT_SUCCESS;
 }
 
-static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
+static int aesCbc(hashtable *currPath, BasicTuple *tuple, unsigned char key[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
 {
     printf("aes_cbc()\n");
-    // assert(numBytes%16 ==0);
-    if (numBytes % 16 != 0)
-    {
-        printf("%d\n", numBytes);
-        printf("bytesize is wrong\n");
-        exit(EXIT_FAILURE);
-    }
+    int check = 0;
     printf("Input is multiple of 16\n");
-    // unsigned char iv1[IV_LEN];
-    // copyArr(iv, iv1, IV_LEN);
+
     mbedtls_aes_context aes;
     mbedtls_aes_context aes2;
     mbedtls_aes_init(&aes);
@@ -69,21 +71,67 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char iv1[], 
     // printf("init");
     unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
     unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+    populateBlockBasicTuple(tuple, 'C', 'H');
+    addNewTuple(currPath, tuple);
     // printf("init");
     int success = mbedtls_aes_setkey_enc(&aes, key, (unsigned int)(KEY_LEN * 8));
     if (success != 0)
     {
         printf("Failed to init key\n");
-        exit(EXIT_FAILURE);
+        populateBlockBasicTuple(tuple, 'H', 'G');
+        addNewTuple(currPath, tuple);
+        return 1;
     }
-    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv, text, ciphered);
+    populateBlockBasicTuple(tuple, 'H', 'J');
+    addNewTuple(currPath, tuple);
+    success = mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv, text, ciphered);
+    if (success != 0)
+    {
+        printf("Failed to encrypt\n");
+        populateBlockBasicTuple(tuple, 'J', 'G');
+        addNewTuple(currPath, tuple);
+        return 1;
+    }
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_setkey_dec(&aes2, key, (unsigned int)(KEY_LEN * 8));
-    mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
+    populateBlockBasicTuple(tuple, 'J', 'L');
+    addNewTuple(currPath, tuple);
+
+    success = mbedtls_aes_setkey_dec(&aes2, key, (unsigned int)(KEY_LEN * 8));
+    if (success != 0)
+    {
+        printf("Failed to init key\n");
+        populateBlockBasicTuple(tuple, 'L', 'G');
+        addNewTuple(currPath, tuple);
+        return 1;
+    }
+    populateBlockBasicTuple(tuple, 'L', 'N');
+    addNewTuple(currPath, tuple);
+
+
+    success = mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
+    if (success != 0)
+    {
+        printf("Failed to decrypt\n");
+        populateBlockBasicTuple(tuple, 'N', 'G');
+        addNewTuple(currPath, tuple);
+        return 1;
+    }
+    populateBlockBasicTuple(tuple, 'N', 'P');
+    addNewTuple(currPath, tuple);
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     mbedtls_aes_free(&aes2);
-    checkResult(decipher, text);
+    success = checkResult(decipher, text);
+    if (success != 0)
+    {
+        printf("failed to assert cipher\n");
+        populateBlockBasicTuple(tuple, 'P', 'G');
+        addNewTuple(currPath, tuple);
+        return 1;
+    }
+    populateBlockBasicTuple(tuple, 'P', 'O');
+    addNewTuple(currPath, tuple);
+
     free(ciphered);
     free(decipher);
     printf("exiting aesCbc()\n\n");
@@ -116,30 +164,6 @@ static int aesEcb(unsigned char key[], unsigned char text[], int numBytes)
     free(ciphered);
     free(decipher);
     printf("exiting aesEcb()\n\n");
-    return EXIT_SUCCESS;
-}
-
-static int aesCfb8(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
-{
-    printf("aesCfb8()\n");
-    mbedtls_aes_context aes;
-    mbedtls_aes_init(&aes);
-    // printf("init");
-    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
-    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
-    unsigned char *iv_buff = calloc(1, (sizeof(unsigned char) * IV_LEN));
-    copyArr(iv, iv_buff, IV_LEN);
-    mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv_buff, (const char *)text, ciphered);
-    printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_crypt_cfb8(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv_buff, (const char *)ciphered, decipher);
-    printf("Deciphered: %s\n", decipher);
-    mbedtls_aes_free(&aes);
-    checkResult(decipher, text);
-    free(iv_buff);
-    free(ciphered);
-    free(decipher);
-    printf("exiting aesCfb8()\n\n");
     return EXIT_SUCCESS;
 }
 
@@ -218,7 +242,7 @@ unsigned char generate_key(int x)
 char *flip_bit_mutator(unsigned char *x)
 {
     int length = strlen((const char *)x);
-    char *xor = calloc(1,length);
+    char * xor = calloc(1, length);
     for (int i = 0; i < length; i++)
     {
         xor[i] = (char)(x[i] ^ 0xFF);
@@ -230,7 +254,7 @@ char *flip_bit_mutator(unsigned char *x)
 char *swap_mutator(unsigned char *x)
 {
     int length = strlen((const char *)x);
-    char *y = calloc(1,length);
+    char *y = calloc(1, length);
     strcpy(y, (const char *)x);
     char z = 0;
     for (int i = 0; i < length; i++)
@@ -244,15 +268,146 @@ char *swap_mutator(unsigned char *x)
     return y;
 }
 
+
+char *getTupleString(BasicTuple *tuple)
+{
+    char *tuplestring = malloc(2 * sizeof(char));
+    tuplestring[0] = tuple->prev;
+    tuplestring[1] = tuple->curr;
+    return tuplestring;
+}
+
+void getBlocksAesList(arraylist *allBasicBlocks)
+{
+    arraylist_add(allBasicBlocks, "AB");
+    arraylist_add(allBasicBlocks, "BC");
+    arraylist_add(allBasicBlocks, "BD");
+    arraylist_add(allBasicBlocks, "BE");
+    arraylist_add(allBasicBlocks, "BF");
+    arraylist_add(allBasicBlocks, "BG");
+
+    arraylist_add(allBasicBlocks, "CH");
+    arraylist_add(allBasicBlocks, "HJ");
+    arraylist_add(allBasicBlocks, "JL");
+    arraylist_add(allBasicBlocks, "LN");
+    arraylist_add(allBasicBlocks, "NP");
+    arraylist_add(allBasicBlocks, "HG");
+    arraylist_add(allBasicBlocks, "JG");
+    arraylist_add(allBasicBlocks, "LG");
+    arraylist_add(allBasicBlocks, "NG");
+
+    arraylist_add(allBasicBlocks, "Dh");
+    arraylist_add(allBasicBlocks, "hj");
+    arraylist_add(allBasicBlocks, "jl");
+    arraylist_add(allBasicBlocks, "ln");
+    arraylist_add(allBasicBlocks, "nP");
+    arraylist_add(allBasicBlocks, "hG");
+    arraylist_add(allBasicBlocks, "jG");
+    arraylist_add(allBasicBlocks, "lG");
+    arraylist_add(allBasicBlocks, "nG");
+
+    arraylist_add(allBasicBlocks, "EI");
+    arraylist_add(allBasicBlocks, "IK");
+    arraylist_add(allBasicBlocks, "KM");
+    arraylist_add(allBasicBlocks, "MP");
+    arraylist_add(allBasicBlocks, "IG");
+    arraylist_add(allBasicBlocks, "KG");
+    arraylist_add(allBasicBlocks, "MG");
+
+    arraylist_add(allBasicBlocks, "Fi");
+    arraylist_add(allBasicBlocks, "ik");
+    arraylist_add(allBasicBlocks, "km");
+    arraylist_add(allBasicBlocks, "mP");
+    arraylist_add(allBasicBlocks, "iG");
+    arraylist_add(allBasicBlocks, "jG");
+    arraylist_add(allBasicBlocks, "mG");
+
+    arraylist_add(allBasicBlocks, "PO");
+    arraylist_add(allBasicBlocks, "PG");
+}
+
+void populateAesPath(hashtable *path, arraylist *list)
+{
+    int length = arraylist_size(list);
+    for (int i = 0; i < length; i++)
+    {
+        char *key = arraylist_get(list, i);
+        hashtable_set(path, key, 0);
+    }
+    printf("populated aes path hashtable\n");
+}
+
+void addNewTuple(hashtable *path, BasicTuple *tuple)
+{
+    char *string = getTupleString(tuple);
+    // printf("%s\n",string);
+    int current = hashtable_get(path, string);
+    current++;
+    // printf("%d\n",current);
+    hashtable_set(path, string, current);
+}
+
+int isInterestingInner(hashtable *oldPath, hashtable *newPath, arraylist *blockList)
+{
+    // 1 is interesting
+    // 0 is not interesting the numbers are the same
+    int len = arraylist_size(blockList);
+    for (int i = 0; i < len; i++)
+    {
+        char *key = arraylist_get(blockList, i);
+        int oldVal = hashtable_get(oldPath, key);
+        int newVal = hashtable_get(newPath, key);
+        if (oldVal != newVal)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int isInterstingOuter(arraylist *oldPaths, hashtable *newPath, arraylist *blockList)
+{
+    // 1 is interesting
+    // 0 is not interesting the numbers are the same
+    int len = arraylist_size(oldPaths);
+    for (int i = 0; i < len; i++)
+    {
+        hashtable *currOldPath = arraylist_get(oldPaths, i);
+        int check = isInterestingInner(currOldPath, newPath, blockList);
+        if (check == 1)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+void populateBlockBasicTuple(BasicTuple *tuple, char prev, char curr)
+{
+    tuple->prev = prev;
+    tuple->curr = curr;
+}
+
 int main(int argc, char *argv[])
 {
+    // aes basic block list
+    arraylist *allBasicBlocks = arraylist_create();
+    getBlocksAesList(allBasicBlocks);
 
-    
+    // aes arraylist of prev paths
+    arraylist *allPrevPaths = arraylist_create();
+
+    // current path
+    hashtable *currPath = hashtable_create();
+    populateAesPath(currPath, allBasicBlocks);
+
+    arraylist *seedQ = arraylist_create();
+
     if (argc > 3 || argc == 1)
     {
         printf("Command argument syntax err.\n");
         printf("Eg: ./crypt_test ./plain.txt ./options.txt\n");
         printf("Eg: ./crypt_test ./plain + options.txt\n");
+        exit(1);
     }
     printf("\nStarted main function\n");
     // declare the variables
@@ -365,51 +520,61 @@ int main(int argc, char *argv[])
         printf("exiting reading of file block\n");
     }
 
-    // check key and iv length
-    if (!(((int)strlen(key) == 16) || ((int)strlen(key) == 24) || ((int)strlen(key) == 32)))
-    {
-        printf("keysize: %d\n", (int)strlen(key));
-        printf("Illegal key size\n");
-    }
-    if ((int)strlen(iv) != 16)
-    {
-        printf("Illegal iv size\n");
-    }
-    if ((int)strlen(iv2) != 16)
-    {
-        printf("Illegal iv2 size\n");
-    }
     numBytes = (int)strlen(text);
     printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
     printf("Cipher: %s\n", cipher);
     printf("Key: %s\nKeysize: %d\n", key, (int)strlen(key));
     printf("IV: %s\nivSize: %d\n\n", iv, (int)strlen(iv));
+    printf("IV2: %s\nivSize: %d\n\n", iv2, (int)strlen(iv2));
 
+    // prep input tuple
+    hashtable *inputTuple = hashtable_create();
+    hashtable_set(inputTuple, "cipher", cipher);
+    hashtable_set(inputTuple, "key", key);
+    hashtable_set(inputTuple, "iv", iv);
+    hashtable_set(inputTuple, "iv2", iv2);
+
+    BasicTuple *tuple = malloc(sizeof(BasicTuple));
+    populateBlockBasicTuple(tuple, 'A', 'B');
+    addNewTuple(currPath, tuple);
+
+    int success = 1;
     if (strcmp(cipher, "CBC") == 0)
     {
-        aesCbc(key, iv, iv2, text, numBytes);
+        populateBlockBasicTuple(tuple, 'B', 'C');
+        addNewTuple(currPath, tuple);
+        success = aesCbc(currPath, tuple, key, iv, iv2, text, numBytes) != 0;
+
     }
     else if (strcmp(cipher, "ECB") == 0)
     {
-        aesEcb(key, text, numBytes);
+        populateBlockBasicTuple(tuple, 'B', 'D');
+        addNewTuple(currPath, tuple);
+        success = aesEcb(key, text, numBytes);
     }
     else if (strcmp(cipher, "CTR") == 0)
     {
-        aesCtr(key, iv, text, numBytes);
+        populateBlockBasicTuple(tuple, 'B', 'E');
+        addNewTuple(currPath, tuple);
+        success = aesCtr(key, iv, text, numBytes);
     }
     else if (strcmp(cipher, "CFB128") == 0)
     {
-        aesCfb128(key, iv, text, numBytes);
-    }
-    else if (strcmp(cipher, "CFB8") == 0)
-    {
-        aesCfb8(key, iv, text, numBytes);
+        populateBlockBasicTuple(tuple, 'B', 'F');
+        addNewTuple(currPath, tuple);
+        success = aesCfb128(key, iv, text, numBytes);
     }
     else // cipher was not recognised
     {
+        populateBlockBasicTuple(tuple, 'B', 'G');
+        addNewTuple(currPath, tuple);
         printf("cipher code not recognised");
-        assert(1 == 0);
+        // assert(1 == 0);
         return EXIT_FAILURE;
+    }
+    if (success != 0)
+    {
+        exit(EXIT_FAILURE);
     }
     printf("exit successfully\n");
     return EXIT_SUCCESS;
