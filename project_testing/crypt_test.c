@@ -569,12 +569,11 @@ int main(int argc, char *argv[])
         populateBlockBasicTuple(tuple, 'B', 'G');
         addNewTuple(currPath, tuple);
         printf("cipher code not recognised");
-        // assert(1 == 0);
         return EXIT_FAILURE;
     }
     if (success != 0)
     {
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     printf("exit successfully\n");
     return EXIT_SUCCESS;
