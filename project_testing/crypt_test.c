@@ -48,7 +48,7 @@ int copyArr(unsigned char iv1[], unsigned char iv2[], int size)
 }
 int checkResult(unsigned char *decipher, unsigned char *text)
 {
-    if (strcmp(decipher, text) != 0)
+    if (memcmp(decipher, text, sizeof(decipher)) != 0)
     {
         printf("error\n");
         printf("Expected: %s\n", text);
