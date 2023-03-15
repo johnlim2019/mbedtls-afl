@@ -1,0 +1,8 @@
+abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+1234567890
+!@#$%^&*()_+-=~[]\;',./{}|:?<>"
+endplain
+CBC
+itzkbgulrcsjmnvg
+0123456789asda32
+0123456789123326

@@ -1,6 +1,6 @@
 abcdefghijklmnopqrstuvwxy
 endplain
-CFB128
+CBC
 itzkbgulrcsjmnvg
 0123456789123456
 0123456789123456

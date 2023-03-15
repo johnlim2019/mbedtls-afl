@@ -1,0 +1,8 @@
+abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890
+!@#$%^&*()_+-=~[];',./{}|:?<>"
+endplain
+CTR
+itzkbgulrcsjmnvg
+0123456789123456
+0123456789123456
