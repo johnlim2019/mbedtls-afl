@@ -49,7 +49,7 @@ int checkResult(unsigned char *decipher, unsigned char *text)
     }
 }
 
-static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
+static int aesCbc(unsigned char key[], unsigned char key2[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
 {
     printf("aes_cbc()\n");
     // assert(numBytes%16 ==0);
@@ -82,7 +82,7 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char iv1[], 
         exit(EXIT_FAILURE);
     }
     printf("Ciphertext: %s\n", ciphered);
-    success = mbedtls_aes_setkey_dec(&aes2, key, (unsigned int)(KEY_LEN * 8));
+    success = mbedtls_aes_setkey_dec(&aes2, key2, (unsigned int)(KEY_LEN * 8));
     if (success != 0)
     {
         printf("Failed to init dec key\n");
@@ -103,7 +103,7 @@ static int aesCbc(unsigned char key[], unsigned char iv[], unsigned char iv1[], 
     printf("exiting aesCbc()\n\n");
     return EXIT_SUCCESS;
 }
-static int aesEcb(unsigned char key[], unsigned char text[], int numBytes)
+static int aesEcb(unsigned char key[], unsigned char key2[], unsigned char text[], int numBytes)
 {
     printf("aes_ecb()\n");
     // printf("init");
@@ -129,7 +129,7 @@ static int aesEcb(unsigned char key[], unsigned char text[], int numBytes)
         exit(EXIT_FAILURE);
     }
     printf("Ciphertext: %s\n", ciphered);
-    mbedtls_aes_setkey_dec(&aes2, key, KEY_LEN * 8);
+    mbedtls_aes_setkey_dec(&aes2, key2, KEY_LEN * 8);
     if (success != 0)
     {
         printf("Failed to init dec key\n");
@@ -300,6 +300,7 @@ int main(int argc, char *argv[])
     unsigned char *text;
     unsigned char *cipher;
     unsigned char *key;
+    unsigned char *key2;
     unsigned char *iv;
     unsigned char *iv2;
 
@@ -341,6 +342,7 @@ int main(int argc, char *argv[])
         size_t characters;
         unsigned char *cipherArr[MAX_LINE];
         unsigned char *keyArr[MAX_LINE];
+        unsigned char *keyArr2[MAX_LINE];
         unsigned char *ivArr[MAX_LINE];
         unsigned char *ivArr2[MAX_LINE];
         // get first three lines to get the three options, cipher, iv1, iv2
@@ -348,6 +350,8 @@ int main(int argc, char *argv[])
         strcpy((char *)cipherArr, line_buf);
         characters = getline(&line_buf, &bufsize, optionsFile);
         strcpy((char *)keyArr, line_buf);
+        characters = getline(&line_buf, &bufsize, optionsFile);
+        strcpy((char *)keyArr2, line_buf);
         characters = getline(&line_buf, &bufsize, optionsFile);
         strcpy((char *)ivArr, line_buf);
         characters = getline(&line_buf, &bufsize, optionsFile);
@@ -359,6 +363,7 @@ int main(int argc, char *argv[])
         // drop the line break and assign the values to the global variables.
         cipher = strtok((char *)cipherArr, "\n");
         key = strtok((char *)keyArr, "\n");
+        key2 = strtok((char *)keyArr2, "\n");
         iv = strtok((char *)ivArr, "\n");
         iv2 = strtok((char *)ivArr2, "\n");
     }
@@ -399,6 +404,7 @@ int main(int argc, char *argv[])
         // options
         cipher = strtok(optext, "\n");
         key = strtok(NULL, "\n");
+        key2 = strtok(NULL, "\n");
         iv = strtok(NULL, "\n");
         iv2 = strtok(NULL, "\n");
 
@@ -428,11 +434,11 @@ int main(int argc, char *argv[])
 
     if (strcmp(cipher, "CBC") == 0)
     {
-        aesCbc(key, iv, iv2, text, numBytes);
+        aesCbc(key, key2, iv, iv2, text, numBytes);
     }
     else if (strcmp(cipher, "ECB") == 0)
     {
-        aesEcb(key, text, numBytes);
+        aesEcb(key, key2, text, numBytes);
     }
     else if (strcmp(cipher, "CTR") == 0)
     {
