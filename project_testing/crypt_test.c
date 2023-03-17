@@ -52,23 +52,12 @@ int checkResult(unsigned char *decipher, unsigned char *text)
 static int aesCbc(unsigned char key[], unsigned char key2[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
 {
     printf("aes_cbc()\n");
-    // assert(numBytes%16 ==0);
-    // if (numBytes % 16 != 0)
-    // {
-    //     printf("%d\n", numBytes);
-    //     printf("bytesize is wrong\n");
-    // }
-    // printf("Input is multiple of 16\n");
-    // unsigned char iv1[IV_LEN];
-    // copyArr(iv, iv1, IV_LEN);
     mbedtls_aes_context aes;
     mbedtls_aes_context aes2;
     mbedtls_aes_init(&aes);
     mbedtls_aes_init(&aes2);
-    // printf("init");
     unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
     unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
-    // printf("init");
     int success = mbedtls_aes_setkey_enc(&aes, key, (unsigned int)(KEY_LEN * 8));
     if (success != 0)
     {
@@ -106,16 +95,13 @@ static int aesCbc(unsigned char key[], unsigned char key2[], unsigned char iv[],
 static int aesEcb(unsigned char key[], unsigned char key2[], unsigned char text[], int numBytes)
 {
     printf("aes_ecb()\n");
-    // printf("init");
     mbedtls_aes_context aes;
     mbedtls_aes_context aes2;
     mbedtls_aes_init(&aes);
     mbedtls_aes_init(&aes2);
 
-    // printf("init");
     unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
     unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
-    // printf("init");
     int success = mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
     if (success != 0)
     {
@@ -145,7 +131,6 @@ static int aesEcb(unsigned char key[], unsigned char key2[], unsigned char text[
     char *texttest = sliceString((char *)text, 0, 16);
     mbedtls_aes_free(&aes);
     mbedtls_aes_free(&aes2);
-    // printf("%s",texttest);
     checkResult(decipher, texttest);
     free(ciphered);
     free(decipher);
@@ -160,10 +145,8 @@ static int aesCfb128(unsigned char key[], unsigned char iv[], unsigned char text
     copyArr(iv, iv1, IV_LEN);
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
-    // printf("init");
     unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
     unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
-    // printf("init");
     size_t *iv_off = calloc(1, sizeof(size_t));
     *iv_off = 0;
 
@@ -203,8 +186,6 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
     mbedtls_aes_init(&aes);
     unsigned char ciphered[CIPHERTEXT_LEN];
     unsigned char decipher[MAX_LINE];
-    // unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
-    // unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
     int success = mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
     if (success != 0)
     {
@@ -233,56 +214,8 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
     printf("Deciphered: %s\n", decipher);
     mbedtls_aes_free(&aes);
     checkResult(decipher, text);
-    // free(ciphered);
-    // free(decipher);
     printf("exiting aesCtr()\n\n");
     return EXIT_SUCCESS;
-}
-
-unsigned char generate_key(int x)
-{
-    time_t t;
-
-    const char *string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$^&*()_+-=~[]\\;'\",./{}|:?<>";
-    unsigned char key[x];
-    srand((unsigned)time(&t));
-    for (int i = 0; i < x; i++)
-    {
-        int r = rand() % strlen(string);
-        key[i] = string[r];
-        // printf("%d,\n",r,string[r]);
-    }
-    printf("%s", key);
-    return *key;
-}
-
-char *flip_bit_mutator(unsigned char *x)
-{
-    int length = strlen((const char *)x);
-    char * xor = calloc(1, length);
-    for (int i = 0; i < length; i++)
-    {
-        xor[i] = (char)(x[i] ^ 0xFF);
-    }
-    // printf("%s\n", xor);
-    return xor;
-}
-
-char *swap_mutator(unsigned char *x)
-{
-    int length = strlen((const char *)x);
-    char *y = calloc(1, length);
-    strcpy(y, (const char *)x);
-    char z = 0;
-    for (int i = 0; i < length; i++)
-    {
-        int j = rand() % length;
-        z = y[i];
-        y[i] = y[j];
-        y[j] = z;
-    }
-    // printf("%s", y);
-    return y;
 }
 
 int main(int argc, char *argv[])
@@ -410,21 +343,6 @@ int main(int argc, char *argv[])
 
         printf("exiting reading of file block\n");
     }
-
-    // check key and iv length
-    // if (!(((int)strlen(key) == 16) || ((int)strlen(key) == 24) || ((int)strlen(key) == 32)))
-    // {
-    //     printf("keysize: %d\n", (int)strlen(key));
-    //     printf("Illegal key size\n");
-    // }
-    // if ((int)strlen(iv) != 16)
-    // {
-    //     printf("Illegal iv size\n");
-    // }
-    // if ((int)strlen(iv2) != 16)
-    // {
-    //     printf("Illegal iv2 size\n");
-    // }
     numBytes = (int)strlen(text);
     printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
     printf("Cipher: %s\n", cipher);
