@@ -220,7 +220,7 @@ static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[],
 
 int main(int argc, char *argv[])
 {
-
+    // *(int *)0xdeadbeef = 37;
     if (argc > 3 || argc == 1)
     {
         printf("Command argument syntax err.\n");

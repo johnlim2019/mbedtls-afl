@@ -1,0 +1,380 @@
+        -:    0:Source:crypt_test.c
+        -:    0:Graph:crypt_test.gcno
+        -:    0:Data:crypt_test.gcda
+        -:    0:Runs:1
+        -:    1:#include "mbedtls/aes.h"
+        -:    2:#include <stdio.h>
+        -:    3:#include <stdlib.h>
+        -:    4:#include <string.h>
+        -:    5:#include <sys/types.h>
+        -:    6:#include <unistd.h>
+        -:    7:#include <ctype.h>
+        -:    8:#include <assert.h>
+        -:    9:
+        -:   10:#define CIPHERTEXT_LEN 1024
+        -:   11:#define MAX_LINE 1024
+        -:   12:#define KEY_LEN 16
+        -:   13:#define IV_LEN 16
+        -:   14:
+    #####:   15:char *sliceString(char *str, int start, int end)
+        -:   16:{
+        -:   17:
+        -:   18:    int i;
+    #####:   19:    int size = (end - start);
+    #####:   20:    char *output = (char *)malloc(size * sizeof(char));
+        -:   21:
+    #####:   22:    for (i = 0; start <= end; start++, i++)
+        -:   23:    {
+    #####:   24:        output[i] = str[start];
+        -:   25:    }
+        -:   26:
+    #####:   27:    output[size] = '\0';
+        -:   28:
+    #####:   29:    return output;
+        -:   30:}
+        -:   31:
+    #####:   32:int copyArr(unsigned char iv1[], unsigned char iv2[], int size)
+        -:   33:{
+    #####:   34:    for (int i = 0; i < size; i++)
+        -:   35:    {
+    #####:   36:        iv2[i] = iv1[i];
+        -:   37:    }
+    #####:   38:    return 0;
+        -:   39:}
+    #####:   40:int checkResult(unsigned char *decipher, unsigned char *text)
+        -:   41:{
+    #####:   42:    if (memcmp(decipher, text, sizeof(decipher)) != 0)
+        -:   43:    {
+    #####:   44:        printf("error\n");
+    #####:   45:        printf("Expected: %s\n", text);
+    #####:   46:        printf("Actual: %s\n", decipher);
+        -:   47:        // assert(memcmp(decipher, text, sizeof(decipher)) == 0);
+    #####:   48:        exit(EXIT_FAILURE);
+        -:   49:    }
+    #####:   50:}
+        -:   51:
+        1:   52:static int aesCbc(unsigned char key[], unsigned char key2[], unsigned char iv[], unsigned char iv1[], unsigned char text[], int numBytes)
+        -:   53:{
+        1:   54:    printf("aes_cbc()\n");
+        -:   55:    mbedtls_aes_context aes;
+        -:   56:    mbedtls_aes_context aes2;
+        1:   57:    mbedtls_aes_init(&aes);
+        1:   58:    mbedtls_aes_init(&aes2);
+        1:   59:    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+        1:   60:    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+        1:   61:    int success = mbedtls_aes_setkey_enc(&aes, key, (unsigned int)(KEY_LEN * 8));
+        1:   62:    if (success != 0)
+        -:   63:    {
+    #####:   64:        printf("Failed to init key\n");
+    #####:   65:        exit(EXIT_FAILURE);
+        -:   66:    }
+        1:   67:    success = mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv, text, ciphered);
+        1:   68:    if (success != 0)
+        -:   69:    {
+        1:   70:        printf("Failed to encrypt\n");
+        1:   71:        exit(EXIT_FAILURE);
+        -:   72:    }
+    #####:   73:    printf("Ciphertext: %s\n", ciphered);
+    #####:   74:    success = mbedtls_aes_setkey_dec(&aes2, key2, (unsigned int)(KEY_LEN * 8));
+    #####:   75:    if (success != 0)
+        -:   76:    {
+    #####:   77:        printf("Failed to init dec key\n");
+    #####:   78:        exit(EXIT_FAILURE);
+        -:   79:    }
+    #####:   80:    success = mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
+    #####:   81:    if (success != 0)
+        -:   82:    {
+    #####:   83:        printf("Failed to decrypt\n");
+    #####:   84:        exit(EXIT_FAILURE);
+        -:   85:    }
+    #####:   86:    printf("Deciphered: %s\n", decipher);
+    #####:   87:    mbedtls_aes_free(&aes);
+    #####:   88:    mbedtls_aes_free(&aes2);
+    #####:   89:    checkResult(decipher, text);
+    #####:   90:    free(ciphered);
+    #####:   91:    free(decipher);
+    #####:   92:    printf("exiting aesCbc()\n\n");
+    #####:   93:    return EXIT_SUCCESS;
+        -:   94:}
+    #####:   95:static int aesEcb(unsigned char key[], unsigned char key2[], unsigned char text[], int numBytes)
+        -:   96:{
+    #####:   97:    printf("aes_ecb()\n");
+        -:   98:    mbedtls_aes_context aes;
+        -:   99:    mbedtls_aes_context aes2;
+    #####:  100:    mbedtls_aes_init(&aes);
+    #####:  101:    mbedtls_aes_init(&aes2);
+        -:  102:
+    #####:  103:    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    #####:  104:    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+    #####:  105:    int success = mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
+    #####:  106:    if (success != 0)
+        -:  107:    {
+    #####:  108:        printf("Failed to init key\n");
+    #####:  109:        exit(EXIT_FAILURE);
+        -:  110:    }
+    #####:  111:    success = mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_ENCRYPT, text, ciphered);
+    #####:  112:    if (success != 0)
+        -:  113:    {
+    #####:  114:        printf("Failed to encrypt\n");
+    #####:  115:        exit(EXIT_FAILURE);
+        -:  116:    }
+    #####:  117:    printf("Ciphertext: %s\n", ciphered);
+    #####:  118:    mbedtls_aes_setkey_dec(&aes2, key2, KEY_LEN * 8);
+    #####:  119:    if (success != 0)
+        -:  120:    {
+    #####:  121:        printf("Failed to init dec key\n");
+    #####:  122:        exit(EXIT_FAILURE);
+        -:  123:    }
+    #####:  124:    success = mbedtls_aes_crypt_ecb(&aes2, MBEDTLS_AES_DECRYPT, ciphered, decipher);
+    #####:  125:    if (success != 0)
+        -:  126:    {
+    #####:  127:        printf("Failed to decrypt\n");
+    #####:  128:        exit(EXIT_FAILURE);
+        -:  129:    }
+    #####:  130:    printf("Deciphered: %s\n", decipher);
+    #####:  131:    char *texttest = sliceString((char *)text, 0, 16);
+    #####:  132:    mbedtls_aes_free(&aes);
+    #####:  133:    mbedtls_aes_free(&aes2);
+    #####:  134:    checkResult(decipher, texttest);
+    #####:  135:    free(ciphered);
+    #####:  136:    free(decipher);
+    #####:  137:    printf("exiting aesEcb()\n\n");
+    #####:  138:    return EXIT_SUCCESS;
+        -:  139:}
+        -:  140:
+    #####:  141:static int aesCfb128(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
+        -:  142:{
+    #####:  143:    printf("aesCfb128()\n");
+        -:  144:    unsigned char iv1[IV_LEN];
+    #####:  145:    copyArr(iv, iv1, IV_LEN);
+        -:  146:    mbedtls_aes_context aes;
+    #####:  147:    mbedtls_aes_init(&aes);
+    #####:  148:    unsigned char *ciphered = calloc(1, (sizeof(unsigned char) * CIPHERTEXT_LEN));
+    #####:  149:    unsigned char *decipher = calloc(1, (sizeof(unsigned char) * MAX_LINE));
+    #####:  150:    size_t *iv_off = calloc(1, sizeof(size_t));
+    #####:  151:    *iv_off = 0;
+        -:  152:
+    #####:  153:    int success = mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
+    #####:  154:    if (success != 0)
+        -:  155:    {
+    #####:  156:        printf("Failed to init key\n");
+    #####:  157:        exit(EXIT_FAILURE);
+        -:  158:    }
+    #####:  159:    success = mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv_off, iv, (const char *)text, ciphered);
+    #####:  160:    if (success != 0)
+        -:  161:    {
+    #####:  162:        printf("Failed to encrypt\n");
+    #####:  163:        exit(EXIT_FAILURE);
+        -:  164:    }
+    #####:  165:    printf("Ciphertext: %s\n", ciphered);
+    #####:  166:    success = mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv_off, iv1, (const char *)ciphered, decipher);
+    #####:  167:    if (success != 0)
+        -:  168:    {
+    #####:  169:        printf("Failed to dec\n");
+    #####:  170:        exit(EXIT_FAILURE);
+        -:  171:    }
+    #####:  172:    printf("Deciphered: %s\n", decipher);
+    #####:  173:    mbedtls_aes_free(&aes);
+    #####:  174:    checkResult(decipher, text);
+    #####:  175:    free(iv_off);
+    #####:  176:    free(ciphered);
+    #####:  177:    free(decipher);
+    #####:  178:    printf("exiting aesCfb128()\n\n");
+    #####:  179:    return EXIT_SUCCESS;
+        -:  180:}
+        -:  181:
+    #####:  182:static int aesCtr(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
+        -:  183:{
+    #####:  184:    printf("aesCtr()\n");
+        -:  185:    mbedtls_aes_context aes;
+    #####:  186:    mbedtls_aes_init(&aes);
+        -:  187:    unsigned char ciphered[CIPHERTEXT_LEN];
+        -:  188:    unsigned char decipher[MAX_LINE];
+    #####:  189:    int success = mbedtls_aes_setkey_enc(&aes, key, KEY_LEN * 8);
+    #####:  190:    if (success != 0)
+        -:  191:    {
+    #####:  192:        printf("Failed to init key\n");
+    #####:  193:        exit(EXIT_FAILURE);
+        -:  194:    }
+    #####:  195:    unsigned char nonce_counter[16] = {0};
+        -:  196:    unsigned char stream_block[16];
+    #####:  197:    unsigned char nonce_counter1[16] = {0};
+        -:  198:    unsigned char stream_block1[16];
+    #####:  199:    size_t nc_off = 0;
+    #####:  200:    size_t nc_off1 = 0;
+    #####:  201:    success = mbedtls_aes_crypt_ctr(&aes, numBytes, &nc_off, nonce_counter, stream_block, text, ciphered);
+    #####:  202:    if (success != 0)
+        -:  203:    {
+    #####:  204:        printf("Failed to encrypt\n");
+    #####:  205:        exit(EXIT_FAILURE);
+        -:  206:    }
+    #####:  207:    printf("Ciphertext: %s\n", ciphered);
+    #####:  208:    success = mbedtls_aes_crypt_ctr(&aes, strlen((const char *)ciphered), &nc_off1, nonce_counter1, stream_block1, ciphered, decipher);
+    #####:  209:    if (success != 0)
+        -:  210:    {
+    #####:  211:        printf("Failed to decrypt\n");
+    #####:  212:        exit(EXIT_FAILURE);
+        -:  213:    }
+    #####:  214:    printf("Deciphered: %s\n", decipher);
+    #####:  215:    mbedtls_aes_free(&aes);
+    #####:  216:    checkResult(decipher, text);
+    #####:  217:    printf("exiting aesCtr()\n\n");
+    #####:  218:    return EXIT_SUCCESS;
+        -:  219:}
+        -:  220:
+        1:  221:int main(int argc, char *argv[])
+        -:  222:{
+        1:  223:    if (argc > 3 || argc == 1)
+        -:  224:    {
+    #####:  225:        printf("Command argument syntax err.\n");
+    #####:  226:        printf("Eg: ./crypt_test ./plain.txt ./options.txt\n");
+    #####:  227:        printf("Eg: ./crypt_test ./plain + options.txt\n");
+        -:  228:    }
+        1:  229:    printf("\nStarted main function\n");
+        -:  230:    // declare the variables
+        -:  231:    long numBytes;
+        -:  232:    unsigned char *text;
+        -:  233:    unsigned char *cipher;
+        -:  234:    unsigned char *key;
+        -:  235:    unsigned char *key2;
+        -:  236:    unsigned char *iv;
+        -:  237:    unsigned char *iv2;
+        -:  238:
+        1:  239:    if (argc == 3)
+        -:  240:    {
+    #####:  241:        char *path = argv[1];
+    #####:  242:        FILE *file = fopen(path, "r");
+    #####:  243:        if (!file)
+        -:  244:        {
+    #####:  245:            perror(path);
+    #####:  246:            exit(EXIT_FAILURE);
+        -:  247:        }
+    #####:  248:        printf("Reading plain text file at %s\n", path);
+        -:  249:
+        -:  250:        // we are taking the whole file as a single string input
+    #####:  251:        fseek(file, 0L, SEEK_END);
+    #####:  252:        numBytes = ftell(file);
+    #####:  253:        fseek(file, 0L, SEEK_SET);
+    #####:  254:        text = (char *)calloc(numBytes, sizeof(char));
+    #####:  255:        if (text == NULL)
+        -:  256:        {
+    #####:  257:            exit(EXIT_FAILURE);
+        -:  258:        }
+    #####:  259:        fread(text, sizeof(char), numBytes, file);
+    #####:  260:        fclose(file);
+        -:  261:
+        -:  262:        // open options file
+    #####:  263:        char *optionsPath = argv[2];
+    #####:  264:        FILE *optionsFile = fopen(optionsPath, "r");
+    #####:  265:        printf("Reading options file at %s\n", optionsPath);
+    #####:  266:        if (!optionsFile)
+        -:  267:        {
+    #####:  268:            perror(optionsPath);
+    #####:  269:            exit(EXIT_FAILURE);
+        -:  270:        }
+    #####:  271:        char *line_buf = NULL;
+    #####:  272:        int line_count = 0;
+    #####:  273:        size_t bufsize = 32;
+        -:  274:        size_t characters;
+        -:  275:        unsigned char *cipherArr[MAX_LINE];
+        -:  276:        unsigned char *keyArr[MAX_LINE];
+        -:  277:        unsigned char *keyArr2[MAX_LINE];
+        -:  278:        unsigned char *ivArr[MAX_LINE];
+        -:  279:        unsigned char *ivArr2[MAX_LINE];
+        -:  280:        // get first three lines to get the three options, cipher, iv1, iv2
+    #####:  281:        characters = getline(&line_buf, &bufsize, optionsFile);
+    #####:  282:        strcpy((char *)cipherArr, line_buf);
+    #####:  283:        characters = getline(&line_buf, &bufsize, optionsFile);
+    #####:  284:        strcpy((char *)keyArr, line_buf);
+    #####:  285:        characters = getline(&line_buf, &bufsize, optionsFile);
+    #####:  286:        strcpy((char *)keyArr2, line_buf);
+    #####:  287:        characters = getline(&line_buf, &bufsize, optionsFile);
+    #####:  288:        strcpy((char *)ivArr, line_buf);
+    #####:  289:        characters = getline(&line_buf, &bufsize, optionsFile);
+    #####:  290:        strcpy((char *)ivArr2, line_buf);
+        -:  291:        // trash
+    #####:  292:        free(line_buf);
+    #####:  293:        line_buf = NULL;
+        -:  294:
+        -:  295:        // drop the line break and assign the values to the global variables.
+    #####:  296:        cipher = strtok((char *)cipherArr, "\n");
+    #####:  297:        key = strtok((char *)keyArr, "\n");
+    #####:  298:        key2 = strtok((char *)keyArr2, "\n");
+    #####:  299:        iv = strtok((char *)ivArr, "\n");
+    #####:  300:        iv2 = strtok((char *)ivArr2, "\n");
+        -:  301:    }
+        1:  302:    else if (argc == 2)
+        -:  303:    {
+        -:  304:        // only one file contain all values.
+        -:  305:        // open combined file
+        1:  306:        char *path = argv[1];
+        1:  307:        FILE *file = fopen(path, "r");
+        1:  308:        printf("Reading options file at %s\n", path);
+        1:  309:        if (!file)
+        -:  310:        {
+    #####:  311:            perror(path);
+    #####:  312:            return EXIT_FAILURE;
+        -:  313:        }
+        -:  314:        // get plaintext
+        1:  315:        fseek(file, 0L, SEEK_END);
+        1:  316:        numBytes = ftell(file);
+        1:  317:        fseek(file, 0L, SEEK_SET);
+        1:  318:        text = (char *)calloc(numBytes, sizeof(char));
+        1:  319:        fread(text, sizeof(char), numBytes, file);
+        1:  320:        fclose(file);
+        -:  321:        // printf("%s\n",text);
+        -:  322:        // printf("%d\n",(int)strlen(text));
+        1:  323:        const char *needle = "\nendplain\n";
+        1:  324:        char *pos = strstr(text, needle);
+        1:  325:        if (pos == NULL)
+        -:  326:        {
+    #####:  327:            printf("error in seed file\n");
+    #####:  328:            return 1;
+        -:  329:        }
+        1:  330:        *pos = '\0';
+        1:  331:        printf("%s\n", text);
+        -:  332:
+        -:  333:        // get ops
+        1:  334:        char *optext = pos + strlen(needle);
+        1:  335:        printf("%s\n", optext);
+        -:  336:        // options
+        1:  337:        cipher = strtok(optext, "\n");
+        1:  338:        key = strtok(NULL, "\n");
+        1:  339:        key2 = strtok(NULL, "\n");
+        1:  340:        iv = strtok(NULL, "\n");
+        1:  341:        iv2 = strtok(NULL, "\n");
+        -:  342:
+        1:  343:        printf("exiting reading of file block\n");
+        -:  344:    }
+        1:  345:    numBytes = (int)strlen(text);
+        1:  346:    printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
+        1:  347:    printf("Cipher: %s\n", cipher);
+        1:  348:    printf("Key: %s\nKeysize: %d\n", key, (int)strlen(key));
+        1:  349:    printf("IV: %s\nivSize: %d\n\n", iv, (int)strlen(iv));
+        1:  350:    printf("IV2: %s\nivSize: %d\n\n", iv2, (int)strlen(iv));
+        -:  351:
+        1:  352:    if (strcmp(cipher, "CBC") == 0)
+        -:  353:    {
+        1:  354:        aesCbc(key, key2, iv, iv2, text, numBytes);
+        -:  355:    }
+    #####:  356:    else if (strcmp(cipher, "ECB") == 0)
+        -:  357:    {
+    #####:  358:        aesEcb(key, key2, text, numBytes);
+        -:  359:    }
+    #####:  360:    else if (strcmp(cipher, "CTR") == 0)
+        -:  361:    {
+    #####:  362:        aesCtr(key, iv, text, numBytes);
+        -:  363:    }
+    #####:  364:    else if (strcmp(cipher, "CFB128") == 0)
+        -:  365:    {
+    #####:  366:        aesCfb128(key, iv, text, numBytes);
+        -:  367:    }
+        -:  368:    else // cipher was not recognised
+        -:  369:    {
+    #####:  370:        printf("cipher code not recognised");
+        -:  371:        // assert(1 == 0);
+    #####:  372:        return EXIT_FAILURE;
+        -:  373:    }
+    #####:  374:    printf("exit successfully\n");
+    #####:  375:    return EXIT_SUCCESS;
+        -:  376:}
