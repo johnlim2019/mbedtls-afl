@@ -145,10 +145,11 @@ class Runner:
             return lines_dict
 
     def isInteresting(self,lines_dict1: dict, lines_dict2: dict) -> bool:
+        # the is interesting returns true if the two provided paths are different
         keys1 = list(lines_dict1.keys())
         keys2 = list(lines_dict2.keys())
         if keys1 != keys2:
-            return False
+            return True
         targetMatches = len(
             keys1)  # we want all lines to match if it is not interesting
         numMatches = 0
@@ -167,7 +168,7 @@ class Runner:
             else:
                 i += 1
 
-        return (numMatches == targetMatches)
+        return (numMatches != targetMatches)
 
     def isInterestingOuter(self, newpath: dict) -> bool:
         if len(self.hashList) == 0:
