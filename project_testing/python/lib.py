@@ -1,19 +1,58 @@
 import os
 import uuid
 
+
 class Runner:
-    hashList = []
-    SeedQDict = {}
+    seedHashLs = []
+    pathHashLs = []
+    seedQDict = {}
     pathQDict = {}
-    seedFile:str = './python/seed.txt'
+    failedPathHashLs = []
+    seedFile: str = './python/seed.txt'
     projectTestingDir = None
-    coverageFile:str = None
-    
-    def __init__(self,pwd:str):
+    coverageFile: str = "crypt_test.c.gcov"
+
+    def __init__(self, pwd: str):
         self.projectTestingDir = pwd
-    
-    def createSeedFile(self,key: str, key2: str, IV: str, IV2: str, algo: str,
-                    plain: str) -> str:
+
+    def getAesInputs(self, folder: str) -> bool:
+        os.chdir(self.projectTestingDir)
+        fileList = os.listdir(folder)
+        os.chdir(folder)
+        # print(fileList)
+        
+        # populate the 
+        for filename in fileList:
+            # print(filename)
+            try:
+                with open(filename, "r") as file:
+                    lines = file.read()
+                    # print(lines)
+                    endplain = "\nendplain\n"
+                    plain = key = key2 = iv = iv2 = algo = ""
+                    plain = lines[:lines.index(endplain)]
+                    # print(plain)
+                    lines = lines[lines.index(endplain)+len(endplain):]
+                    algo, key, key2, iv, iv2 = lines.split("\n")
+                    # print(iv2)
+                    inputDict = {
+                        "key":key,
+                        "key2":key2,
+                        "iv":iv,
+                        "iv2":iv2,
+                        "algo":algo,
+                        "plain":plain
+                    }
+                hashkey = uuid.uuid4()
+                self.seedHashLs.append(hashkey)
+                self.seedQDict[hashkey] = inputDict
+            except Exception as e:
+                print(e)
+                return False
+        return True
+
+    def createSeedFile(self, key: str, key2: str, IV: str, IV2: str, algo: str,
+                       plain: str) -> str:
         os.chdir(self.projectTestingDir)
         fileStr = ""
         fileStr += plain + "\nendplain\n"
@@ -26,14 +65,12 @@ class Runner:
             f.write(fileStr)
         return self.seedFile
 
-
-    def isCrash(self,path: dict) -> bool:
+    def isCrash(self, path: dict) -> bool:
         return path[375] == 0
 
-
-    def crashNoPathCov(self)->dict:
+    def crashNoPathCov(self) -> dict:
         # we create a path where 375 is 0 this is the main method return success line
-        return {375:0}
+        return {375: 0}
 
     def runScriptUbuntu(self) -> int:
         # 0 no crash, path generated
@@ -54,7 +91,7 @@ class Runner:
             return 1
         runTest = "./crypt_test " + self.seedFile
         exitCode = os.waitstatus_to_exitcode(os.system(runTest))
-        if exitCode > 1: 
+        if exitCode > 1:
             print("Program crash no path generated")
             return -1
         coverage = "gcov crypt_test.c -m"
@@ -66,44 +103,93 @@ class Runner:
         print("completed one cycle")
         return exitCode
 
-    def getPathCovFile(self,input:dict)->int:
-        # run the test and return 
+    def getPathCovFile(self, input: dict) -> int:
+        # run the test and return
         key = input["key"]
         key2 = input["key2"]
         iv = input["iv"]
         iv2 = input["iv2"]
         algo = input["algo"]
         plain = input["plain"]
-        seedFilePath = self.createSeedFile(key,key2,iv,iv2,algo,plain)
-        print("seed file path")
-        print(seedFilePath)
-        self.coverageFile = seedFilePath
+        self.createSeedFile(key, key2, iv, iv2, algo, plain)
+        # print("seed file path")
+        # print(seedFilePath)
         exitStatus = self.runScriptUbuntu()
         return exitStatus
 
-    def parseFile(self,covFilePath:str)->dict:
-        return {}
-    
-    def isInteresting(self,path:dict,path2:dict)->bool:
-        return True
-    
-    def isInterestingOuter(self,newpath:dict)->bool:
-        for oldpathId in self.hashList:
+    def parseFile(self,filename: str) -> dict:
+        with open(filename, "r") as file:
+            lines_dict = {}
+            for line in file:
+                columns = line.split()
+                # print(columns[0])
+                # Get the first column for the dictionary value (how many counts the line has been executed)
+                first_column = columns[0].split(":")[0]
+                key = columns[1].split(":")[0]
+                # print("first columns "+first_column)
+                # print(key)
+
+                # Check if the count is -, since - means it is not executable so we don't need it
+                if first_column[0] == "-":
+                    continue
+
+                # Able to be executed but have not been executed, might be an interesting path
+                if first_column.startswith("#####"):
+                    # Set the value of the line to 0 in lines_dict
+                    lines_dict[key] = 0
+                else:
+                    # Add into lines dict
+                    lines_dict[key] = int(first_column)
+
+            # Print out the dictionary
+            # for key, value in lines_dict.items():
+            #    print(key +" "+ value)
+
+            return lines_dict
+
+    def isInteresting(self,lines_dict1: dict, lines_dict2: dict) -> bool:
+        keys1 = list(lines_dict1.keys())
+        keys2 = list(lines_dict2.keys())
+        if keys1 != keys2:
+            return False
+        targetMatches = len(
+            keys1)  # we want all lines to match if it is not interesting
+        numMatches = 0
+        i = 0
+
+        while i < len(keys1):
+            # print("i "+str(i))
+
+            key1 = keys1[i]
+            key2 = keys2[i]
+
+            if key1 == key2 and lines_dict1[key1] == lines_dict2[key2]:
+                # print("Line '{}' has the same execution count in both files.".format(key1))
+                numMatches += 1
+                i += 1
+            else:
+                i += 1
+
+        return (numMatches == targetMatches)
+
+    def isInterestingOuter(self, newpath: dict) -> bool:
+        if len(self.pathHashLs) == 0:
+            return True
+        for oldpathId in self.pathHashLs:
             oldpath = self.pathQDict[oldpathId]
-            if self.isInteresting(oldpath,newpath) != False:
+            if self.isInteresting(oldpath, newpath) != False:
                 return False
         return True
 
-    
-    def runTest(self,inputDict)->None:
-        exitCode:int = self.getPathCovFile(inputDict)
+    def runTest(self, inputDict) -> None:
+        exitCode: int = self.getPathCovFile(inputDict)
         isfail = False
         if exitCode == 2:
             print("gcc compiling issue or gcov execution issue")
             return exit()
         elif exitCode == -1:
             isfail = True
-            path:dict = self.crashNoPathCov()
+            path: dict = self.crashNoPathCov()
         elif exitCode == 1:
             isfail = True
         elif exitCode == 0:
@@ -112,39 +198,53 @@ class Runner:
             print("unknown exitcode crash")
             exit()
         covFilePath = self.coverageFile
-        path:dict = self.parseFile(covFilePath)
-        interesting:bool = self.isInterestingOuter(path)
+        path: dict = self.parseFile(covFilePath)
+        # print(path)
+        interesting: bool = self.isInterestingOuter(path)
         if interesting:
+            print("interesting path found")
             ids = uuid.uuid4()
-            self.SeedQDict[ids] = fuzzed_seed
-            self.SeedQDict[ids] = path
+            self.seedQDict[ids] = fuzzed_seed
             self.pathQDict[ids] = path
-            self.seedFile = exitCode
-
-    def getInput(self):
-        return
-        ids = self.hashList[-1]
-        return self.SeedQDict[ids]
+            self.seedHashLs.append(ids)
+            self.pathHashLs.append(ids)                                   
+            if isfail:
+                print("path is a failing path")
+                self.failedPathHashLs.append(ids)
     
+    def getInput(self):
+        ids = self.seedHashLs[-1]
+        return self.seedQDict[ids]
+
+
 if __name__ == "__main__":
     pwd = "/home/lim/mbedtls/project_testing"
 
     runner = Runner(pwd)
-    seed = runner.getInput() 
+    runner.getAesInputs('./aes_combined_seed')
+    print(runner.seedHashLs)
+    seed = runner.getInput()
     # fuzzing to get fuzzed input dict with fuzzer class
     fuzzed_seed = {
-        "key":"itzkbg2",
-        "key2":"itzkbg2",
-        "iv":"0123456789123456",
-        "iv2":"0123456789123456",
-        "algo":"CBC",
-        "plain":"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
+        "key":
+        "itzkbg2",
+        "key2":
+        "itzkbg2",
+        "iv":
+        "0123456789123456",
+        "iv2":
+        "0123456789123456",
+        "algo":
+        "CBC",
+        "plain":
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
     }
 
-    # run coverage and return coverage file
-    covFilePath = runner.getPathCovFile(fuzzed_seed)    
-
-
+    # run coverage and log if it is intereing. we also add it to failq if it is failing
+    runner.runTest(fuzzed_seed)
+    print(runner.pathHashLs)
+    print(runner.seedHashLs)
+    print(runner.failedPathHashLs)
 
     # Fuzzer.createSeedFile(
     #     "itzkbg2", "itzkbg2", "0123456789123456", "0123456789123456", "CBC",
@@ -154,4 +254,3 @@ if __name__ == "__main__":
     # print("end of execution return value: "+str(output))
     # output = Fuzzer.runScriptUbuntu(pwd, "./aes_combined_seed/aes_combined_cbc.txt")
     # print("end of execution return value: "+str(output))
-
