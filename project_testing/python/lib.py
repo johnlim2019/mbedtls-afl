@@ -3,8 +3,7 @@ import uuid
 
 
 class Runner:
-    seedHashLs = []
-    pathHashLs = []
+    hashList = []
     seedQDict = {}
     pathQDict = {}
     failedPathHashLs = []
@@ -23,32 +22,30 @@ class Runner:
         
         # populate the 
         for filename in fileList:
-            # print(filename)
-            try:
-                with open(filename, "r") as file:
-                    lines = file.read()
-                    # print(lines)
-                    endplain = "\nendplain\n"
-                    plain = key = key2 = iv = iv2 = algo = ""
-                    plain = lines[:lines.index(endplain)]
-                    # print(plain)
-                    lines = lines[lines.index(endplain)+len(endplain):]
-                    algo, key, key2, iv, iv2 = lines.split("\n")
-                    # print(iv2)
-                    inputDict = {
-                        "key":key,
-                        "key2":key2,
-                        "iv":iv,
-                        "iv2":iv2,
-                        "algo":algo,
-                        "plain":plain
-                    }
-                hashkey = uuid.uuid4()
-                self.seedHashLs.append(hashkey)
-                self.seedQDict[hashkey] = inputDict
-            except Exception as e:
-                print(e)
-                return False
+            os.chdir(self.projectTestingDir)
+            os.chdir(folder)
+            with open(filename, "r") as file:
+                lines = file.read()
+                # print(lines)
+                endplain = "\nendplain\n"
+                plain = key = key2 = iv = iv2 = algo = ""
+                plain = lines[:lines.index(endplain)]
+                # print(plain)
+                lines = lines[lines.index(endplain)+len(endplain):]
+                algo, key, key2, iv, iv2 = lines.split("\n")
+                # print(iv2)
+                inputDict = {
+                    "key":key,
+                    "key2":key2,
+                    "iv":iv,
+                    "iv2":iv2,
+                    "algo":algo,
+                    "plain":plain
+                }
+                self.runTest(inputDict)
+            # except Exception as e:
+            #     print(e)
+            #     return False
         return True
 
     def createSeedFile(self, key: str, key2: str, IV: str, IV2: str, algo: str,
@@ -173,9 +170,9 @@ class Runner:
         return (numMatches == targetMatches)
 
     def isInterestingOuter(self, newpath: dict) -> bool:
-        if len(self.pathHashLs) == 0:
+        if len(self.hashList) == 0:
             return True
-        for oldpathId in self.pathHashLs:
+        for oldpathId in self.hashList:
             oldpath = self.pathQDict[oldpathId]
             if self.isInteresting(oldpath, newpath) != False:
                 return False
@@ -204,16 +201,18 @@ class Runner:
         if interesting:
             print("interesting path found")
             ids = uuid.uuid4()
-            self.seedQDict[ids] = fuzzed_seed
+            self.seedQDict[ids] = inputDict
             self.pathQDict[ids] = path
-            self.seedHashLs.append(ids)
-            self.pathHashLs.append(ids)                                   
+            # self.hashList.append(ids)
+            self.hashList.append(ids)                                   
             if isfail:
                 print("path is a failing path")
                 self.failedPathHashLs.append(ids)
     
+        print("path is not unique")
+        return
     def getInput(self):
-        ids = self.seedHashLs[-1]
+        ids = self.hashList[-1]
         return self.seedQDict[ids]
 
 
@@ -222,29 +221,30 @@ if __name__ == "__main__":
 
     runner = Runner(pwd)
     runner.getAesInputs('./aes_combined_seed')
-    print(runner.seedHashLs)
-    seed = runner.getInput()
-    # fuzzing to get fuzzed input dict with fuzzer class
-    fuzzed_seed = {
-        "key":
-        "itzkbg2",
-        "key2":
-        "itzkbg2",
-        "iv":
-        "0123456789123456",
-        "iv2":
-        "0123456789123456",
-        "algo":
-        "CBC",
-        "plain":
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
-    }
-
-    # run coverage and log if it is intereing. we also add it to failq if it is failing
-    runner.runTest(fuzzed_seed)
-    print(runner.pathHashLs)
-    print(runner.seedHashLs)
+    print(runner.hashList)
+    print(runner.pathQDict.keys())
+    print(runner.seedQDict.keys())
     print(runner.failedPathHashLs)
+    # seed = runner.getInput()
+    # # fuzzing to get fuzzed input dict with fuzzer class
+    # fuzzed_seed = {
+    #     "key":
+    #     "itzkbg2",
+    #     "key2":
+    #     "itzkbg2",
+    #     "iv":
+    #     "0123456789123456",
+    #     "iv2":
+    #     "0123456789123456",
+    #     "algo":
+    #     "CBC",
+    #     "plain":
+    #     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
+    # }
+
+    # # run coverage and log if it is intereing. we also add it to failq if it is failing
+    # runner.runTest(fuzzed_seed)
+
 
     # Fuzzer.createSeedFile(
     #     "itzkbg2", "itzkbg2", "0123456789123456", "0123456789123456", "CBC",

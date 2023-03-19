@@ -41,15 +41,15 @@
         -:   37:    }
     #####:   38:    return 0;
         -:   39:}
-    #####:   40:int checkResult(unsigned char *decipher, unsigned char *text)
+        1:   40:int checkResult(unsigned char *decipher, unsigned char *text)
         -:   41:{
-    #####:   42:    if (memcmp(decipher, text, sizeof(decipher)) != 0)
+        1:   42:    if (memcmp(decipher, text, sizeof(decipher)) != 0)
         -:   43:    {
-    #####:   44:        printf("error\n");
-    #####:   45:        printf("Expected: %s\n", text);
-    #####:   46:        printf("Actual: %s\n", decipher);
+        1:   44:        printf("error\n");
+        1:   45:        printf("Expected: %s\n", text);
+        1:   46:        printf("Actual: %s\n", decipher);
         -:   47:        // assert(memcmp(decipher, text, sizeof(decipher)) == 0);
-    #####:   48:        exit(EXIT_FAILURE);
+        1:   48:        exit(EXIT_FAILURE);
         -:   49:    }
     #####:   50:}
         -:   51:
@@ -71,26 +71,26 @@
         1:   67:    success = mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, numBytes, iv, text, ciphered);
         1:   68:    if (success != 0)
         -:   69:    {
-        1:   70:        printf("Failed to encrypt\n");
-        1:   71:        exit(EXIT_FAILURE);
+    #####:   70:        printf("Failed to encrypt\n");
+    #####:   71:        exit(EXIT_FAILURE);
         -:   72:    }
-    #####:   73:    printf("Ciphertext: %s\n", ciphered);
-    #####:   74:    success = mbedtls_aes_setkey_dec(&aes2, key2, (unsigned int)(KEY_LEN * 8));
-    #####:   75:    if (success != 0)
+        1:   73:    printf("Ciphertext: %s\n", ciphered);
+        1:   74:    success = mbedtls_aes_setkey_dec(&aes2, key2, (unsigned int)(KEY_LEN * 8));
+        1:   75:    if (success != 0)
         -:   76:    {
     #####:   77:        printf("Failed to init dec key\n");
     #####:   78:        exit(EXIT_FAILURE);
         -:   79:    }
-    #####:   80:    success = mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
-    #####:   81:    if (success != 0)
+        1:   80:    success = mbedtls_aes_crypt_cbc(&aes2, MBEDTLS_AES_DECRYPT, strlen((const char *)ciphered), iv1, ciphered, decipher);
+        1:   81:    if (success != 0)
         -:   82:    {
     #####:   83:        printf("Failed to decrypt\n");
     #####:   84:        exit(EXIT_FAILURE);
         -:   85:    }
-    #####:   86:    printf("Deciphered: %s\n", decipher);
-    #####:   87:    mbedtls_aes_free(&aes);
-    #####:   88:    mbedtls_aes_free(&aes2);
-    #####:   89:    checkResult(decipher, text);
+        1:   86:    printf("Deciphered: %s\n", decipher);
+        1:   87:    mbedtls_aes_free(&aes);
+        1:   88:    mbedtls_aes_free(&aes2);
+        1:   89:    checkResult(decipher, text);
     #####:   90:    free(ciphered);
     #####:   91:    free(decipher);
     #####:   92:    printf("exiting aesCbc()\n\n");
