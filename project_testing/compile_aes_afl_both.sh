@@ -18,7 +18,7 @@ if $HOME/AFL/afl-clang -I../include ./crypt_test.c -o crypt_test_afl ../library/
                     if ./crypt_test_afl ./aes_combined_seed/aes_combined_cbc.txt; then
                         echo combined cbc completed;
                         echo ALL TESTS PASSED;             
-                        $HOME/AFL/afl-fuzz -m 1000 -i ./aes_combined_seed/ -o ./results_aes -- ./crypt_test_afl @@               
+                        $HOME/AFL/afl-fuzz -m 1000 -i ./aes_combined_seed-afl/ -o ./results_aes -- ./crypt_test_afl @@               
                     fi
                 fi
             fi
