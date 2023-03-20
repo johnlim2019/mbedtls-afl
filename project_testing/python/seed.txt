@@ -1,7 +1,7 @@
 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[]\;',./{}|:?<>"123
 endplain
-CBC
-itzkbgulrcsjmnvg
-itzkbgulrcsjmnvg
-ajhdgajkhgajshkd
-0123456789123326
+CFB128
+itzkbgulrcsjmasg12345678
+itzkbgulrcsjmasg12345678
+0123456789123456
+0123456789123456

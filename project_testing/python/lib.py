@@ -6,7 +6,8 @@ import uuid
 import time
 import pandas as pd
 import numpy as np
-
+import pickle
+import multiprocessing as mp
 class Runner:
     hashList = []
     seedQDict = {}
@@ -85,7 +86,7 @@ class Runner:
         # 1 crash, with path generated
         # 2 some execution failure not related to test script
         # we need to compile and then execute binary to be able to run coverage.
-        print()
+        # print()
         try:
             os.chdir(self.projectTestingDir)
         except Exception as e:
@@ -107,7 +108,7 @@ class Runner:
             return 2
         deletenotes = "rm -rf crypt_test.gc*"
         os.system(deletenotes)
-        print("completed one cycle")
+        # print("completed one cycle")
         return exitCode
 
     def getPathCovFile(self, input: dict) -> int:
@@ -212,32 +213,35 @@ class Runner:
         # print(path)
         interesting: bool = self.isInterestingOuter(path)
         if interesting:
-            print("interesting path found")
+            # print("interesting path found")
             ids = uuid.uuid4()
             self.seedQDict[ids] = inputDict
             self.pathQDict[ids] = path
             self.hashList.append(ids)
             self.pathFrequency[ids] = 1
             if isfail:
-                print("path is a failing path")
+                # print("path is a failing path")
                 self.failedPathHashLs.append(ids)
                 return
             else:
-                print("path is a successful path")
+                # print("path is a successful path")
                 self.successPathHashLs.append(ids)
                 return
-        print("path is not unique")
+        # print("path is not unique")
 
         return
 
-    def getSeed(self)->dict:
+    def getSeed(self)->int:
         # get random seed
         hashind = random.randint(0,len(self.hashList)-1)
-        return self.seedQDict[self.hashList[hashind]]
+        return self.hashList[hashind]
 
 class Fuzzer:
-    # TODO
+    alpha_i = 2
+    alpha_max = 150000
+    pwd:str = None
     runner:Runner
+    seedFreq:dict = {} # number of times a seed has been selected in mainLoop for fuzzing
     currSeed:str = None
     mutationLs:list = ["mutation0","mutation1","mutation2"]
     defaultEpochs:int = None
@@ -247,34 +251,77 @@ class Fuzzer:
     timelineYIterations:list = []
     timelineX:list = []
 
-    def __init__(self,pwd:str,seedFolder:str,defaultEpochs:int) -> None:
+    def __init__(self,pwd:str, seedFolder:str,defaultEpochs:int=20,runGetAesInput=False) -> None:
+        self.pwd = pwd
         self.defaultEpochs = defaultEpochs
-        self.runner = Runner(pwd)
-        try:
-            self.runner.getAesInputs(seedFolder) 
-        except Exception as e:
-            print(e)
-            print("failed to initialise prepared inputs")
-            exit(1)
-        print("Completed initialised of prepared inputs")
+        if runGetAesInput == False:
+            self.runner = Runner(pwd)
+            try:
+                self.runner.getAesInputs(seedFolder) 
+            except Exception as e:
+                print(e)
+                print("failed to initialise prepared inputs")
+                exit(1)
+            print("Completed initialised of prepared inputs")
+        else:
+            self.runner = Runner(pwd)
+            print("runenr object attribute is set to None, please use loadRunner() to load a serialised runner object instance")
 
     def mutation0(self,input:dict)->dict:
-        print("mutation0 selected")
+        # print("mutation0 selected")
         return input
     def mutation1(self,input:dict)->dict:
-        print("mutation1 selected")
+        # print("mutation1 selected")
         return input
     def mutation2(self,input:dict)->dict:
-        print("mutation2 selected")
+        # print("mutation2 selected")
         return input    
     
-    def assignEnergy(self)->int:
-        return 10
+    def initialiseSeedFreq(self)->bool:
+        # before calling fuzzing, we populate the seedFreq which is the number of times the seed is called from CoreFuzzer.mainLoop()
+        try:
+            for hashval in self.runner.hashList:
+                self.seedFreq[hashval] = 0
+        except Exception as e:
+            print(e)
+            return False
+        return True
+    
+    def updateSeedFreq(self,seedHash:str)->bool:
+        try:
+            self.seedFreq[seedHash] += 1
+        except Exception as e:
+            print(e)
+            return False
+        return True
+
+    def assignEnergy(self,currSeed:str)->int:
+        pathfreq = self.runner.pathFrequency
+        valueArr = np.array(list(pathfreq.values()))
+        ave = np.mean(valueArr)
+        # print(ave)
+        numTimesPathExecute = pathfreq[currSeed]
+        numTimesSeedChosen = self.seedFreq[currSeed]
+        # print(numTimesPathExecute)
+        # print(numTimesSeedChosen)
+        # formaula is taken from CGF slides
+        if numTimesPathExecute <= ave:
+            print("< ave")
+            currfraction = numTimesPathExecute / np.sum(valueArr)
+            energy = int(self.alpha_i / currfraction * 2 **(numTimesSeedChosen))
+        else:
+            # equals to alpha_i / times path executed
+            print("> ave")
+            energy = int(self.alpha_i / numTimesPathExecute)
+        energy = min(energy,self.alpha_max)
+        # print(energy)
+        return energy
+
     
     def getMutator(self)->int:
         return random.randint(0,len(self.mutationLs)-1)
 
-    def nextInput(self)->dict:
+    def fuzzInput(self)->dict:
         # randomly choose mutation 
         ind = self.getMutator()
         mutator = self.mutationLs[ind]
@@ -285,16 +332,14 @@ class Fuzzer:
             fuzzed = self.mutation1(self.currSeed)
         if mutator == "mutation2":
             fuzzed = self.mutation2(self.currSeed)                        
-        print("New Input Selected "+str(fuzzed))
+        # print("New Input Selected "+str(fuzzed))
         return fuzzed
     
     def innerLoop(self,energy:int)->None:
         # looping based on energy
-        print("_______________________ new inner loop")
+        # print("_______________________ new inner loop")
         for i in range(energy):
-            print()
-            print("------------------ iteration "+str(i))
-            fuzzed_seed = self.nextInput()
+            fuzzed_seed = self.fuzzInput()
             # run new fuzzed seed
             try:
                 self.runner.runTest(fuzzed_seed)
@@ -305,19 +350,25 @@ class Fuzzer:
                 exit(1)
             # count the iteration
             self.iterCount += 1
-        assert (self.getSnapshot()== True)
-        assert (self.writeDisk() == True) # comment out later 
+            if i % 20 == 0:
+                assert (self.getSnapshot()== True)
+                assert (self.writeDisk() == True) # comment out later 
         return
     
     def mainLoop(self,epochs:int=None)->None:
         if epochs == None:
             epochs = self.defaultEpochs
         currEpoch = 0;
+        self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
         while currEpoch < epochs:
             print("\n------------------ epoch "+str(currEpoch))
-            self.currSeed = self.runner.getSeed()
-            energy = self.assignEnergy()
+            pprint(self.seedFreq)
+            seedHash = self.runner.getSeed()
+            self.updateSeedFreq(seedHash) # update the record
+            self.currSeed = self.runner.seedQDict[seedHash]
+            energy = self.assignEnergy(seedHash)
+            print("energy "+str(energy))
             self.innerLoop(energy)
             currEpoch += 1
         return
@@ -346,9 +397,32 @@ class Fuzzer:
             print(e)
             return False
         return True
-
-    
-
+    def dumpRunner(self)->bool:
+        out:list = [self.runner.hashList,self.runner.seedQDict,self.runner.pathQDict,self.runner.pathFrequency,self.runner.failedPathHashLs,self.runner.successPathHashLs]
+        try: 
+            with open("./python/runner.pkl",'wb') as file:
+                pickle.dump(out,file)
+        except Exception as e:
+            print(e) 
+            return False
+        return True
+    def loadRunner(self)->bool:
+        os.chdir(self.pwd)
+        try: 
+            with open("./python/runner.pkl",'rb') as file:
+                inputs:list = pickle.load(file)
+                # print(inputs)
+                self.runner.hashList = inputs[0]
+                self.runner.seedQDict = inputs[1]
+                self.runner.pathQDict = inputs[2]
+                self.runner.pathFrequency = inputs[3]
+                self.runner.failedPathHashLs = inputs[4]
+                self.runner.successPathHashLs = inputs[5]
+                # print(self.runner.pathFrequency)
+        except Exception as e:
+            print(e) 
+            return False
+        return True
 if __name__ == "__main__":
     pwd = "/home/lim/mbedtls/project_testing"
 
@@ -379,11 +453,20 @@ if __name__ == "__main__":
     #     "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
     # }
 
-    coreFuzzer = Fuzzer(pwd,seedFolder="./aes_combined_seed",defaultEpochs=20)
-    # coreFuzzer.innerLoop(10)
-    coreFuzzer.mainLoop()
-
-
+    coreFuzzer = Fuzzer(pwd,seedFolder="./aes_combined_seed",defaultEpochs=2,runGetAesInput=False)
+    coreFuzzer.dumpRunner()
+    coreFuzzer = Fuzzer(pwd,seedFolder="./aes_combined_seed",defaultEpochs=2,runGetAesInput=True)
+    coreFuzzer.loadRunner()
+    coreFuzzer.initialiseSeedFreq()
+    # seed = coreFuzzer.runner.getSeed()
+    # coreFuzzer.currSeed = coreFuzzer.runner.seedQDict[seed]
+    # energy = coreFuzzer.assignEnergy(seed)
+    # coreFuzzer.innerLoop(energy)
+    start = time.time()
+    coreFuzzer.mainLoop(2)
+    end = time.time()
+    timetaken = end - start
+    print("serial: "+str(int(timetaken))+"s")
     print("exit")
 
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
