@@ -1,13 +1,16 @@
 import os
+import subprocess
+from pprint import pprint
 import uuid
-
 
 class Runner:
     hashList = []
     seedQDict = {}
     pathQDict = {}
+    pathFrequency = {}
     failedPathHashLs = []
-    seedFile: str = './python/seed.txt'
+    successPathHashLs = []
+    seedFile: str = "./python/seed.txt"
     projectTestingDir = None
     coverageFile: str = "crypt_test.c.gcov"
 
@@ -19,28 +22,30 @@ class Runner:
         fileList = os.listdir(folder)
         os.chdir(folder)
         # print(fileList)
-        
-        # populate the 
+        # populate the
         for filename in fileList:
             os.chdir(self.projectTestingDir)
             os.chdir(folder)
+            print()
+            print("----------------------")
+            print(filename)
             with open(filename, "r") as file:
                 lines = file.read()
                 # print(lines)
                 endplain = "\nendplain\n"
                 plain = key = key2 = iv = iv2 = algo = ""
-                plain = lines[:lines.index(endplain)]
+                plain = lines[: lines.index(endplain)]
                 # print(plain)
-                lines = lines[lines.index(endplain)+len(endplain):]
+                lines = lines[lines.index(endplain) + len(endplain) :]
                 algo, key, key2, iv, iv2 = lines.split("\n")
                 # print(iv2)
                 inputDict = {
-                    "key":key,
-                    "key2":key2,
-                    "iv":iv,
-                    "iv2":iv2,
-                    "algo":algo,
-                    "plain":plain
+                    "key": key,
+                    "key2": key2,
+                    "iv": iv,
+                    "iv2": iv2,
+                    "algo": algo,
+                    "plain": plain,
                 }
                 self.runTest(inputDict)
             # except Exception as e:
@@ -48,8 +53,9 @@ class Runner:
             #     return False
         return True
 
-    def createSeedFile(self, key: str, key2: str, IV: str, IV2: str, algo: str,
-                       plain: str) -> str:
+    def createSeedFile(
+        self, key: str, key2: str, IV: str, IV2: str, algo: str, plain: str
+    ) -> str:
         os.chdir(self.projectTestingDir)
         fileStr = ""
         fileStr += plain + "\nendplain\n"
@@ -58,7 +64,7 @@ class Runner:
         fileStr += key2 + "\n"
         fileStr += IV + "\n"
         fileStr += IV2
-        with open(self.seedFile, 'w') as f:
+        with open(self.seedFile, "w") as f:
             f.write(fileStr)
         return self.seedFile
 
@@ -85,9 +91,9 @@ class Runner:
         compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls"
         if os.system(compileStr) != 0:
             print("did not compile")
-            return 1
-        runTest = "./crypt_test " + self.seedFile
-        exitCode = os.waitstatus_to_exitcode(os.system(runTest))
+            return 2
+        runTest = ["./crypt_test", self.seedFile]
+        exitCode = subprocess.run(runTest, stdout=subprocess.DEVNULL).returncode
         if exitCode > 1:
             print("Program crash no path generated")
             return -1
@@ -114,7 +120,7 @@ class Runner:
         exitStatus = self.runScriptUbuntu()
         return exitStatus
 
-    def parseFile(self,filename: str) -> dict:
+    def parseFile(self, filename: str) -> dict:
         with open(filename, "r") as file:
             lines_dict = {}
             for line in file:
@@ -144,14 +150,15 @@ class Runner:
 
             return lines_dict
 
-    def isInteresting(self,lines_dict1: dict, lines_dict2: dict) -> bool:
+    def isInteresting(self, lines_dict1: dict, lines_dict2: dict) -> bool:
         # the is interesting returns true if the two provided paths are different
         keys1 = list(lines_dict1.keys())
         keys2 = list(lines_dict2.keys())
         if keys1 != keys2:
             return True
         targetMatches = len(
-            keys1)  # we want all lines to match if it is not interesting
+            keys1
+        )  # we want all lines to match if it is not interesting
         numMatches = 0
         i = 0
 
@@ -168,14 +175,15 @@ class Runner:
             else:
                 i += 1
 
-        return (numMatches != targetMatches)
+        return numMatches != targetMatches
 
     def isInterestingOuter(self, newpath: dict) -> bool:
         if len(self.hashList) == 0:
             return True
         for oldpathId in self.hashList:
             oldpath = self.pathQDict[oldpathId]
-            if self.isInteresting(oldpath, newpath) != False:
+            if self.isInteresting(oldpath, newpath) == False:
+                self.pathFrequency[oldpathId] += 1
                 return False
         return True
 
@@ -204,48 +212,77 @@ class Runner:
             ids = uuid.uuid4()
             self.seedQDict[ids] = inputDict
             self.pathQDict[ids] = path
-            # self.hashList.append(ids)
-            self.hashList.append(ids)                                   
+            self.hashList.append(ids)
+            self.pathFrequency[ids] = 1
             if isfail:
                 print("path is a failing path")
                 self.failedPathHashLs.append(ids)
-    
+                return
+            else:
+                print("path is a successful path")
+                self.successPathHashLs.append(ids)
+                return
         print("path is not unique")
+
         return
-    def getInput(self):
+
+    def getSeed(self):
+        # TODO
         ids = self.hashList[-1]
         return self.seedQDict[ids]
 
-
+class CoreFuzzer:
+    # TODO
+    runnerInstance:Runner
+    
+    def __init__(self,pwd:str) -> None:
+        pass
+    def mutation1(self,input:dict)->dict:
+        output = {}
+        return 
+    # def assignEnergy(self,seedhash:uuid)->int:
+    #     pathFreq = self.runnerInstance.pathFrequency.copy()
+    #     return
+    # def chooseNext(self)->dict:
+    #     return 
+    # def innerLoop(self)->None:
+    #     return
+    # def mainLoop(self)->None:
+    #     return
+    # def getGraph(self)->bool:
+    #     return
 if __name__ == "__main__":
     pwd = "/home/lim/mbedtls/project_testing"
 
     runner = Runner(pwd)
-    runner.getAesInputs('./aes_combined_seed')
-    print(runner.hashList)
-    print(runner.pathQDict.keys())
-    print(runner.seedQDict.keys())
-    print(runner.failedPathHashLs)
-    # seed = runner.getInput()
-    # # fuzzing to get fuzzed input dict with fuzzer class
-    # fuzzed_seed = {
-    #     "key":
-    #     "itzkbg2",
-    #     "key2":
-    #     "itzkbg2",
-    #     "iv":
-    #     "0123456789123456",
-    #     "iv2":
-    #     "0123456789123456",
-    #     "algo":
-    #     "CBC",
-    #     "plain":
-    #     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
-    # }
+    runner.getAesInputs("./aes_combined_seed")
+    # print(runner.hashList)
+    # print(runner.pathQDict.keys())
+    # print(runner.seedQDict.keys())
+    print("FailedHashList")
+    pprint(runner.failedPathHashLs)
+    print("\nSuccessHashList")
+    pprint(runner.successPathHashLs)
+    print("\nSeedQ")
+    pprint(runner.seedQDict)
+    print("\nPathFreq")
+    pprint(runner.pathFrequency)
 
-    # # run coverage and log if it is intereing. we also add it to failq if it is failing
+    assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
+    # seed = runner.getInputRandom()
+    # fuzzing to get fuzzed input dict with fuzzer class
+    fuzzed_seed = {
+        "key": "itzkbg2",
+        "key2": "itzkbg2",
+        "iv": "0123456789123456",
+        "iv2": "0123456789123456",
+        "algo": "CBC",
+        "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
+    }
+    print("exit")
+
+    # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
-
 
     # Fuzzer.createSeedFile(
     #     "itzkbg2", "itzkbg2", "0123456789123456", "0123456789123456", "CBC",
