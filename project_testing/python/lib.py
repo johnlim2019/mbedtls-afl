@@ -1,7 +1,11 @@
 import os
 import subprocess
 from pprint import pprint
+import random
 import uuid
+import time
+import pandas as pd
+import numpy as np
 
 class Runner:
     hashList = []
@@ -97,8 +101,8 @@ class Runner:
         if exitCode > 1:
             print("Program crash no path generated")
             return -1
-        coverage = "gcov crypt_test.c -m"
-        if os.system(coverage) != 0:
+        coverage = ["gcov", "crypt_test.c", "-m"]
+        if subprocess.run(coverage, stdout=subprocess.DEVNULL).returncode != 0:
             print("coverage gcov failed")
             return 2
         deletenotes = "rm -rf crypt_test.gc*"
@@ -226,59 +230,160 @@ class Runner:
 
         return
 
-    def getSeed(self):
-        # TODO
-        ids = self.hashList[-1]
-        return self.seedQDict[ids]
+    def getSeed(self)->dict:
+        # get random seed
+        hashind = random.randint(0,len(self.hashList)-1)
+        return self.seedQDict[self.hashList[hashind]]
 
-class CoreFuzzer:
+class Fuzzer:
     # TODO
-    runnerInstance:Runner
-    
-    def __init__(self,pwd:str) -> None:
-        pass
+    runner:Runner
+    currSeed:str = None
+    mutationLs:list = ["mutation0","mutation1","mutation2"]
+    defaultEpochs:int = None
+    iterCount:int = 0
+    timelineYFails:list = []
+    timelineYPaths:list = []
+    timelineYIterations:list = []
+    timelineX:list = []
+
+    def __init__(self,pwd:str,seedFolder:str,defaultEpochs:int) -> None:
+        self.defaultEpochs = defaultEpochs
+        self.runner = Runner(pwd)
+        try:
+            self.runner.getAesInputs(seedFolder) 
+        except Exception as e:
+            print(e)
+            print("failed to initialise prepared inputs")
+            exit(1)
+        print("Completed initialised of prepared inputs")
+
+    def mutation0(self,input:dict)->dict:
+        print("mutation0 selected")
+        return input
     def mutation1(self,input:dict)->dict:
-        output = {}
-        return 
-    # def assignEnergy(self,seedhash:uuid)->int:
-    #     pathFreq = self.runnerInstance.pathFrequency.copy()
-    #     return
-    # def chooseNext(self)->dict:
-    #     return 
-    # def innerLoop(self)->None:
-    #     return
-    # def mainLoop(self)->None:
-    #     return
-    # def getGraph(self)->bool:
-    #     return
+        print("mutation1 selected")
+        return input
+    def mutation2(self,input:dict)->dict:
+        print("mutation2 selected")
+        return input    
+    
+    def assignEnergy(self)->int:
+        return 10
+    
+    def getMutator(self)->int:
+        return random.randint(0,len(self.mutationLs)-1)
+
+    def nextInput(self)->dict:
+        # randomly choose mutation 
+        ind = self.getMutator()
+        mutator = self.mutationLs[ind]
+        # return fuzzed seed
+        if mutator == "mutation0":
+            fuzzed = self.mutation0(self.currSeed)
+        if mutator == "mutation1":
+            fuzzed = self.mutation1(self.currSeed)
+        if mutator == "mutation2":
+            fuzzed = self.mutation2(self.currSeed)                        
+        print("New Input Selected "+str(fuzzed))
+        return fuzzed
+    
+    def innerLoop(self,energy:int)->None:
+        # looping based on energy
+        print("_______________________ new inner loop")
+        for i in range(energy):
+            print()
+            print("------------------ iteration "+str(i))
+            fuzzed_seed = self.nextInput()
+            # run new fuzzed seed
+            try:
+                self.runner.runTest(fuzzed_seed)
+            except Exception as e:
+                print(e)
+                self.getSnapshot()
+                self.writeDisk()
+                exit(1)
+            # count the iteration
+            self.iterCount += 1
+        assert (self.getSnapshot()== True)
+        assert (self.writeDisk() == True) # comment out later 
+        return
+    
+    def mainLoop(self,epochs:int=None)->None:
+        if epochs == None:
+            epochs = self.defaultEpochs
+        currEpoch = 0;
+        print("\n\n_______________________ new main loop")
+        while currEpoch < epochs:
+            print("\n------------------ epoch "+str(currEpoch))
+            self.currSeed = self.runner.getSeed()
+            energy = self.assignEnergy()
+            self.innerLoop(energy)
+            currEpoch += 1
+        return
+    
+    def getSnapshot(self)->bool:
+        try:
+            failurePaths = len(self.runner.failedPathHashLs)
+            totalPathsQ = len(self.runner.pathQDict.keys())
+            self.timelineYFails.append(failurePaths)
+            self.timelineYPaths.append(totalPathsQ)
+            self.timelineYIterations.append(self.iterCount)
+            self.timelineX.append(time.time())
+        except Exception as e:
+            print(e)
+            return False
+        return True
+    
+    def writeDisk(self)->bool:
+        os.chdir(self.runner.projectTestingDir)
+        try:
+            df = pd.DataFrame([self.timelineX,self.timelineYFails,self.timelineYPaths,self.timelineYIterations])
+            df = df.transpose()
+            df.columns = ["unix_time","failures","total_paths","iterations"]
+            df.to_csv("python/data_list.csv")
+        except Exception as e:
+            print(e)
+            return False
+        return True
+
+    
+
 if __name__ == "__main__":
     pwd = "/home/lim/mbedtls/project_testing"
 
-    runner = Runner(pwd)
-    runner.getAesInputs("./aes_combined_seed")
-    # print(runner.hashList)
-    # print(runner.pathQDict.keys())
-    # print(runner.seedQDict.keys())
-    print("FailedHashList")
-    pprint(runner.failedPathHashLs)
-    print("\nSuccessHashList")
-    pprint(runner.successPathHashLs)
-    print("\nSeedQ")
-    pprint(runner.seedQDict)
-    print("\nPathFreq")
-    pprint(runner.pathFrequency)
+    # runner = Runner(pwd)
+    # runner.getAesInputs("./aes_combined_seed")
+    # # print(runner.hashList)
+    # # print(runner.pathQDict.keys())
+    # # print(runner.seedQDict.keys())
+    # print("FailedHashList")
+    # pprint(runner.failedPathHashLs)
+    # print("\nSuccessHashList")
+    # pprint(runner.successPathHashLs)
+    # print("\nSeedQ")
+    # pprint(runner.seedQDict)
+    # print("\nPathFreq")
+    # pprint(runner.pathFrequency)
 
-    assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
-    # seed = runner.getInputRandom()
-    # fuzzing to get fuzzed input dict with fuzzer class
-    fuzzed_seed = {
-        "key": "itzkbg2",
-        "key2": "itzkbg2",
-        "iv": "0123456789123456",
-        "iv2": "0123456789123456",
-        "algo": "CBC",
-        "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
-    }
+    # assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
+    # seed = runner.getSeed()
+    # print(seed)
+    # # fuzzing to get fuzzed input dict with fuzzer class
+    # fuzzed_seed = {
+    #     "key": "itzkbg2",
+    #     "key2": "itzkbg2",
+    #     "iv": "0123456789123456",
+    #     "iv2": "0123456789123456",
+    #     "algo": "CBC",
+    #     "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
+    # }
+
+    coreFuzzer = Fuzzer(pwd,seedFolder="./aes_combined_seed",defaultEpochs=20)
+    # coreFuzzer.innerLoop(10)
+    coreFuzzer.mainLoop()
+
+
     print("exit")
 
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
