@@ -7,8 +7,17 @@ import time
 import pandas as pd
 import numpy as np
 import pickle
-import multiprocessing as mp
+import string
+
+def getRandomString(length):
+    # choose from all lowercase letter
+    letters = string.printable
+    result_str = ''.join(random.choice(letters) for i in range(length))
+    # print("Random string of length", length, "is:", result_str)
+    return result_str
+
 class Runner:
+    mostRecentHash:uuid = None
     hashList = []
     seedQDict = {}
     pathQDict = {}
@@ -39,9 +48,9 @@ class Runner:
                 # print(lines)
                 endplain = "\nendplain\n"
                 plain = key = key2 = iv = iv2 = algo = ""
-                plain = lines[: lines.index(endplain)]
+                plain = lines[:lines.index(endplain)]
                 # print(plain)
-                lines = lines[lines.index(endplain) + len(endplain) :]
+                lines = lines[lines.index(endplain) + len(endplain):]
                 algo, key, key2, iv, iv2 = lines.split("\n")
                 # print(iv2)
                 inputDict = {
@@ -58,9 +67,8 @@ class Runner:
             #     return False
         return True
 
-    def createSeedFile(
-        self, key: str, key2: str, IV: str, IV2: str, algo: str, plain: str
-    ) -> str:
+    def createSeedFile(self, key: str, key2: str, IV: str, IV2: str, algo: str,
+                       plain: str) -> str:
         os.chdir(self.projectTestingDir)
         fileStr = ""
         fileStr += plain + "\nendplain\n"
@@ -98,7 +106,8 @@ class Runner:
             print("did not compile")
             return 2
         runTest = ["./crypt_test", self.seedFile]
-        exitCode = subprocess.run(runTest, stdout=subprocess.DEVNULL).returncode
+        exitCode = subprocess.run(runTest,
+                                  stdout=subprocess.DEVNULL).returncode
         if exitCode > 1:
             print("Program crash no path generated")
             return -1
@@ -162,8 +171,7 @@ class Runner:
         if keys1 != keys2:
             return True
         targetMatches = len(
-            keys1
-        )  # we want all lines to match if it is not interesting
+            keys1)  # we want all lines to match if it is not interesting
         numMatches = 0
         i = 0
 
@@ -192,7 +200,11 @@ class Runner:
                 return False
         return True
 
-    def runTest(self, inputDict) -> None:
+    def runTest(self, inputDict) -> int:
+        # exit codes 
+        # 0 is intersting not fail
+        # 1 is interesting and fail
+        # -1 is not interesting
         exitCode: int = self.getPathCovFile(inputDict)
         isfail = False
         if exitCode == 2:
@@ -207,7 +219,9 @@ class Runner:
             isfail = False
         else:
             print("unknown exitcode crash")
-            exit()
+            isfail = True
+            path: dict = self.crashNoPathCov()
+            # exit()
         covFilePath = self.coverageFile
         path: dict = self.parseFile(covFilePath)
         # print(path)
@@ -219,45 +233,59 @@ class Runner:
             self.pathQDict[ids] = path
             self.hashList.append(ids)
             self.pathFrequency[ids] = 1
+            self.mostRecentHash = ids
             if isfail:
                 # print("path is a failing path")
                 self.failedPathHashLs.append(ids)
-                return
+                return 1
             else:
                 # print("path is a successful path")
                 self.successPathHashLs.append(ids)
-                return
+                return 0
         # print("path is not unique")
+        return -1
 
-        return
-
-    def getSeed(self)->int:
+    def getSeed(self) -> int:
         # get random seed
-        hashind = random.randint(0,len(self.hashList)-1)
+        hashind = random.randint(0, len(self.hashList) - 1)
         return self.hashList[hashind]
+
 
 class Fuzzer:
     alpha_i = 2
     alpha_max = 150000
-    pwd:str = None
-    runner:Runner
-    seedFreq:dict = {} # number of times a seed has been selected in mainLoop for fuzzing
-    currSeed:str = None
-    mutationLs:list = ["mutation0","mutation1","mutation2"]
-    defaultEpochs:int = None
-    iterCount:int = 0
-    timelineYFails:list = []
-    timelineYPaths:list = []
-    timelineYIterations:list = []
-    timelineX:list = []
+    pwd: str = None
+    runner: Runner
+    seedFreq: dict = {
+    }  # number of times a seed has been selected in mainLoop for fuzzing
+    currSeed: dict = None # this is the dict containing all seed arguments 
+    mutationLs: list = ["replaceChar", "removeChar","insertWhite","algo"]
+    defaultEpochs: int = None
+    iterCount: int = 0
+    timelineYFails: list = []
+    timelineYPaths: list = []
+    timelineYIterations: list = []
+    timelineX: list = []
+    timelineMutatorSel = {
+        "replaceChar":0,
+        "removeChar":0,
+        "insertWhite":0,
+        "algo":0,
+        "total":0
 
-    def __init__(self,pwd:str, seedFolder:str,defaultEpochs:int=20,runGetAesInput=False) -> None:
+    }
+
+    def __init__(self,
+                 pwd: str,
+                 seedFolder: str,
+                 defaultEpochs: int = 20,
+                 runGetAesInput=False) -> None:
         self.pwd = pwd
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == False:
             self.runner = Runner(pwd)
             try:
-                self.runner.getAesInputs(seedFolder) 
+                self.runner.getAesInputs(seedFolder)
             except Exception as e:
                 print(e)
                 print("failed to initialise prepared inputs")
@@ -265,19 +293,111 @@ class Fuzzer:
             print("Completed initialised of prepared inputs")
         else:
             self.runner = Runner(pwd)
-            print("runenr object attribute is set to None, please use loadRunner() to load a serialised runner object instance")
+            print(
+                "runenr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
+            )
 
-    def mutation0(self,input:dict)->dict:
-        # print("mutation0 selected")
-        return input
-    def mutation1(self,input:dict)->dict:
-        # print("mutation1 selected")
-        return input
-    def mutation2(self,input:dict)->dict:
-        # print("mutation2 selected")
-        return input    
-    
-    def initialiseSeedFreq(self)->bool:
+
+    def algoMutation(self, input:dict)->dict:
+        print("mutation algo selected")
+        output = input.copy()
+        algoOptions = ["CBC","CFB128","CTR","ECB","fail"]
+        newValue = random.choice(algoOptions)
+        if (newValue == "fail"):
+            newValue = getRandomString(random.randint(0,8))
+        output['algo'] = newValue
+        print("old dict 2" + str(input))
+        print("new dict 2" + str(output))
+        return output
+
+    def replaceChar(self, input: dict) -> dict:
+        # replace character in the plaintext
+        # make a copy of the input dictionary
+        print("replaceChar selected")
+
+        mutated_dict = input.copy()
+
+        # get the string in the 'plain' field
+        plain_string = mutated_dict['plain']
+
+        # convert the string to a list so we can modify it
+        plain_list = list(plain_string)
+
+        # randomly choose a position to modify
+        position = random.randint(0, len(plain_list) - 1)
+
+        # randomly choose a replacement character
+        new_char = random.choice(
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[]\\;\',./{}|:?<>"\n '
+        )
+
+        # replace the character at the chosen position with the new character
+        plain_list[position] = new_char
+
+        # convert the list back to a string and update the 'plain' field in the mutated dictionary
+        mutated_dict['plain'] = ''.join(plain_list)
+
+        print("old dict 1" + str(input))
+        print("new dict 1" + str(mutated_dict))
+
+        return mutated_dict
+
+    def removeChar(self, input: dict) -> dict:
+        # remove char
+        # make a copy of the input dictionary
+        print("removeChar selected")
+
+        mutated_dict = input.copy()
+
+
+        # select a random key from the dictionary
+        keylist = list(mutated_dict.keys())
+        keylist.remove('algo')
+        key = random.choice(keylist)
+
+        # check if the value corresponding to the selected key is a string
+        if isinstance(mutated_dict[key], str):
+            # get the string value from the selected key
+            value = mutated_dict[key]
+            # choose a random position in the string
+            position = random.randint(0, len(value) - 1)
+            # remove the character at the chosen position
+            value = value[:position] + value[position + 1:]
+            # update the value in the dictionary
+            mutated_dict[key] = value
+
+        print("old dict 1" + str(input))
+        print("new dict 1" + str(mutated_dict))
+
+        return mutated_dict
+
+    def insertWhite(self, input: dict) -> dict:
+        print("insertWhite selected")
+        # insert whitespace 
+        # make a copy of the input dictionary
+        mutated_dict = input.copy()
+
+        # select a random key from the dictionary
+        keylist = list(mutated_dict.keys())
+        keylist.remove('algo')
+        key = random.choice(keylist)
+        # check if the value corresponding to the selected key is a string
+        if isinstance(mutated_dict[key], str):
+            # get the string value from the selected key
+            value = mutated_dict[key]
+            # choose a random position in the string
+            position = random.randint(0, len(value))
+            # insert a white space character at the chosen position
+            value = value[:position] + ' ' + value[position:]
+            # update the value in the dictionary
+            mutated_dict[key] = value
+
+        print("old dict 2" + str(input))
+        print("new dict 2" + str(mutated_dict))
+
+        return mutated_dict
+
+    def initialiseSeedFreq(self) -> bool:
         # before calling fuzzing, we populate the seedFreq which is the number of times the seed is called from CoreFuzzer.mainLoop()
         try:
             for hashval in self.runner.hashList:
@@ -286,8 +406,8 @@ class Fuzzer:
             print(e)
             return False
         return True
-    
-    def updateSeedFreq(self,seedHash:str)->bool:
+
+    def updateSeedFreq(self, seedHash: str) -> bool:
         try:
             self.seedFreq[seedHash] += 1
         except Exception as e:
@@ -295,85 +415,102 @@ class Fuzzer:
             return False
         return True
 
-    def assignEnergy(self,currSeed:str)->int:
+    def assignEnergy(self, currSeed: str) -> int:
         pathfreq = self.runner.pathFrequency
         valueArr = np.array(list(pathfreq.values()))
         ave = np.mean(valueArr)
         # print(ave)
         numTimesPathExecute = pathfreq[currSeed]
         numTimesSeedChosen = self.seedFreq[currSeed]
-        # print(numTimesPathExecute)
-        # print(numTimesSeedChosen)
+        print(numTimesPathExecute)
+        print(numTimesSeedChosen)
         # formaula is taken from CGF slides
         if numTimesPathExecute <= ave:
             print("< ave")
             currfraction = numTimesPathExecute / np.sum(valueArr)
-            energy = int(self.alpha_i / currfraction * 2 **(numTimesSeedChosen))
+            energy = int(self.alpha_i / currfraction * 2**(numTimesSeedChosen))
         else:
             # equals to alpha_i / times path executed
             print("> ave")
             energy = int(self.alpha_i / numTimesPathExecute)
-        energy = min(energy,self.alpha_max)
+        energy = min(energy, self.alpha_max)
         # print(energy)
         return energy
 
-    
-    def getMutator(self)->int:
-        return random.randint(0,len(self.mutationLs)-1)
+    def getMutator(self) -> int:
+        return random.randint(0, len(self.mutationLs) - 1)
 
-    def fuzzInput(self)->dict:
-        # randomly choose mutation 
+    def fuzzInput(self) -> dict:
+        # randomly choose mutation
         ind = self.getMutator()
         mutator = self.mutationLs[ind]
         # return fuzzed seed
-        if mutator == "mutation0":
-            fuzzed = self.mutation0(self.currSeed)
-        if mutator == "mutation1":
-            fuzzed = self.mutation1(self.currSeed)
-        if mutator == "mutation2":
-            fuzzed = self.mutation2(self.currSeed)                        
+        self.timelineMutatorSel['total'] += 1
+        if mutator == "replaceChar":
+            self.timelineMutatorSel["replaceChar"] += 1
+            fuzzed = self.replaceChar(self.currSeed)
+        if mutator == "removeChar":
+            self.timelineMutatorSel["removeChar"] += 1
+            fuzzed = self.removeChar(self.currSeed)
+        if mutator == "insertWhite":
+            self.timelineMutatorSel["insertWhite"] += 1
+            fuzzed = self.insertWhite(self.currSeed)
+        if mutator == "algo":
+            self.timelineMutatorSel["algo"] += 1
+            fuzzed = self.algoMutation(self.currSeed)
         # print("New Input Selected "+str(fuzzed))
         return fuzzed
-    
-    def innerLoop(self,energy:int)->None:
+
+    def innerLoop(self, energy: int) -> None:
         # looping based on energy
         # print("_______________________ new inner loop")
         for i in range(energy):
             fuzzed_seed = self.fuzzInput()
+            self.currSeed = fuzzed_seed
             # run new fuzzed seed
             try:
-                self.runner.runTest(fuzzed_seed)
+                exitCode = self.runner.runTest(fuzzed_seed)
+                # 0 is interesting not fail
+                # 1 is intersting and fail
+                # -1 is not interesting
+                # now we update the seedFrequency and currSeed,
+                if exitCode >= 0:
+                    hashSeed = self.runner.mostRecentHash
+                    self.seedFreq[hashSeed] = 0
+                
             except Exception as e:
+                print("innerloop")
                 print(e)
                 self.getSnapshot()
                 self.writeDisk()
+                self.dumpRunner("./python/dumpCrash.pkl")
                 exit(1)
             # count the iteration
             self.iterCount += 1
             if i % 20 == 0:
-                assert (self.getSnapshot()== True)
-                assert (self.writeDisk() == True) # comment out later 
+                assert (self.getSnapshot() == True)
+                assert (self.writeDisk() == True)  # comment out later
         return
-    
-    def mainLoop(self,epochs:int=None)->None:
+
+    def mainLoop(self, epochs: int = None) -> None:
         if epochs == None:
             epochs = self.defaultEpochs
-        currEpoch = 0;
+        currEpoch = 0
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
         while currEpoch < epochs:
-            print("\n------------------ epoch "+str(currEpoch))
+            print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
             seedHash = self.runner.getSeed()
-            self.updateSeedFreq(seedHash) # update the record
+            self.updateSeedFreq(seedHash)  # update the record
             self.currSeed = self.runner.seedQDict[seedHash]
             energy = self.assignEnergy(seedHash)
-            print("energy "+str(energy))
+            print("energy " + str(energy))
             self.innerLoop(energy)
             currEpoch += 1
         return
-    
-    def getSnapshot(self)->bool:
+
+    def getSnapshot(self) -> bool:
         try:
             failurePaths = len(self.runner.failedPathHashLs)
             totalPathsQ = len(self.runner.pathQDict.keys())
@@ -385,32 +522,45 @@ class Fuzzer:
             print(e)
             return False
         return True
-    
-    def writeDisk(self)->bool:
+
+    def writeDisk(self) -> bool:
         os.chdir(self.runner.projectTestingDir)
         try:
-            df = pd.DataFrame([self.timelineX,self.timelineYFails,self.timelineYPaths,self.timelineYIterations])
+            df = pd.DataFrame([
+                self.timelineX, self.timelineYFails, self.timelineYPaths,
+                self.timelineYIterations
+            ])
             df = df.transpose()
-            df.columns = ["unix_time","failures","total_paths","iterations"]
+            df.columns = ["unix_time", "failures", "total_paths", "iterations"]
             df.to_csv("python/data_list.csv")
+            df2 = pd.DataFrame(list(self.timelineMutatorSel.values()),index=list(self.timelineMutatorSel.keys()))
+            # print(df2)
+            df2.to_csv("python/mutation_sel.csv")
         except Exception as e:
             print(e)
             return False
         return True
-    def dumpRunner(self)->bool:
-        out:list = [self.runner.hashList,self.runner.seedQDict,self.runner.pathQDict,self.runner.pathFrequency,self.runner.failedPathHashLs,self.runner.successPathHashLs]
-        try: 
-            with open("./python/runner.pkl",'wb') as file:
-                pickle.dump(out,file)
+
+    def dumpRunner(self,filename:str) -> bool:
+        out: list = [
+            self.runner.hashList, self.runner.seedQDict, self.runner.pathQDict,
+            self.runner.pathFrequency, self.runner.failedPathHashLs,
+            self.runner.successPathHashLs
+        ]
+        os.chdir(self.pwd)
+        try:
+            with open(filename, 'wb') as file:
+                pickle.dump(out, file)
         except Exception as e:
-            print(e) 
+            print(e)
             return False
         return True
-    def loadRunner(self)->bool:
+
+    def loadRunner(self,filename:str) -> bool:
         os.chdir(self.pwd)
-        try: 
-            with open("./python/runner.pkl",'rb') as file:
-                inputs:list = pickle.load(file)
+        try:
+            with open(filename, 'rb') as file:
+                inputs: list = pickle.load(file)
                 # print(inputs)
                 self.runner.hashList = inputs[0]
                 self.runner.seedQDict = inputs[1]
@@ -420,12 +570,18 @@ class Fuzzer:
                 self.runner.successPathHashLs = inputs[5]
                 # print(self.runner.pathFrequency)
         except Exception as e:
-            print(e) 
+            print(e)
             return False
         return True
+
+
 if __name__ == "__main__":
     pwd = "/home/lim/mbedtls/project_testing"
-
+    pwd = "/home/limjieshengubuntu/mbedtls-afl/project_testing"
+    import sys 
+    orig_stdout = sys.stdout
+    f = open('LOGGER.txt', 'w')
+    sys.stdout = f
     # runner = Runner(pwd)
     # runner.getAesInputs("./aes_combined_seed")
     # # print(runner.hashList)
@@ -444,31 +600,40 @@ if __name__ == "__main__":
     # seed = runner.getSeed()
     # print(seed)
     # # fuzzing to get fuzzed input dict with fuzzer class
-    # fuzzed_seed = {
-    #     "key": "itzkbg2",
-    #     "key2": "itzkbg2",
-    #     "iv": "0123456789123456",
-    #     "iv2": "0123456789123456",
-    #     "algo": "CBC",
-    #     "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
-    # }
+    fuzzed_seed = {
+        "key": "itzkbg2",
+        "key2": "itzkbg2",
+        "iv": "0123456789123456",
+        "iv2": "0123456789123456",
+        "algo": "CBC",
+        "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
+    }
 
-    coreFuzzer = Fuzzer(pwd,seedFolder="./aes_combined_seed",defaultEpochs=2,runGetAesInput=False)
-    coreFuzzer.dumpRunner()
-    coreFuzzer = Fuzzer(pwd,seedFolder="./aes_combined_seed",defaultEpochs=2,runGetAesInput=True)
-    coreFuzzer.loadRunner()
-    coreFuzzer.initialiseSeedFreq()
+    # coreFuzzer = Fuzzer(pwd,
+    #                     seedFolder="./aes_combined_seed",
+    #                     defaultEpochs=2,
+    #                     runGetAesInput=False)
+    # coreFuzzer.dumpRunner("./python/runner.pkl")
+    coreFuzzer = Fuzzer(pwd,
+                        seedFolder="./aes_combined_seed",
+                        defaultEpochs=2,
+                        runGetAesInput=True)
+    coreFuzzer.loadRunner("./python/runner.pkl")
+    # coreFuzzer.initialiseSeedFreq()
     # seed = coreFuzzer.runner.getSeed()
     # coreFuzzer.currSeed = coreFuzzer.runner.seedQDict[seed]
     # energy = coreFuzzer.assignEnergy(seed)
     # coreFuzzer.innerLoop(energy)
+    # coreFuzzer.writeDisk()
+    # print(coreFuzzer.algoMutation(fuzzed_seed))
+
     start = time.time()
-    coreFuzzer.mainLoop(2)
+    coreFuzzer.mainLoop(5)
     end = time.time()
     timetaken = end - start
-    print("serial: "+str(int(timetaken))+"s")
+    print("serial: " + str(int(timetaken)) + "s")
     print("exit")
-
+    f.close()
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
 
