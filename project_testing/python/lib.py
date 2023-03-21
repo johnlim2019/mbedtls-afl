@@ -8,16 +8,19 @@ import pandas as pd
 import numpy as np
 import pickle
 import string
+import mutatemethods as MnM
+
 
 def getRandomString(length):
     # choose from all lowercase letter
     letters = string.printable
-    result_str = ''.join(random.choice(letters) for i in range(length))
+    result_str = "".join(random.choice(letters) for i in range(length))
     # print("Random string of length", length, "is:", result_str)
     return result_str
 
+
 class Runner:
-    mostRecentHash:uuid = None
+    mostRecentHash: uuid = None
     hashList = []
     seedQDict = {}
     pathQDict = {}
@@ -48,9 +51,9 @@ class Runner:
                 # print(lines)
                 endplain = "\nendplain\n"
                 plain = key = key2 = iv = iv2 = algo = ""
-                plain = lines[:lines.index(endplain)]
+                plain = lines[: lines.index(endplain)]
                 # print(plain)
-                lines = lines[lines.index(endplain) + len(endplain):]
+                lines = lines[lines.index(endplain) + len(endplain) :]
                 algo, key, key2, iv, iv2 = lines.split("\n")
                 # print(iv2)
                 inputDict = {
@@ -67,8 +70,9 @@ class Runner:
             #     return False
         return True
 
-    def createSeedFile(self, key: str, key2: str, IV: str, IV2: str, algo: str,
-                       plain: str) -> str:
+    def createSeedFile(
+        self, key: str, key2: str, IV: str, IV2: str, algo: str, plain: str
+    ) -> str:
         os.chdir(self.projectTestingDir)
         fileStr = ""
         fileStr += plain + "\nendplain\n"
@@ -106,8 +110,7 @@ class Runner:
             print("did not compile")
             return 2
         runTest = ["./crypt_test", self.seedFile]
-        exitCode = subprocess.run(runTest,
-                                  stdout=subprocess.DEVNULL).returncode
+        exitCode = subprocess.run(runTest, stdout=subprocess.DEVNULL).returncode
         if exitCode > 1:
             print("Program crash no path generated")
             return -1
@@ -171,7 +174,8 @@ class Runner:
         if keys1 != keys2:
             return True
         targetMatches = len(
-            keys1)  # we want all lines to match if it is not interesting
+            keys1
+        )  # we want all lines to match if it is not interesting
         numMatches = 0
         i = 0
 
@@ -201,7 +205,7 @@ class Runner:
         return True
 
     def runTest(self, inputDict) -> int:
-        # exit codes 
+        # exit codes
         # 0 is intersting not fail
         # 1 is interesting and fail
         # -1 is not interesting
@@ -256,10 +260,21 @@ class Fuzzer:
     alpha_max = 150000
     pwd: str = None
     runner: Runner
-    seedFreq: dict = {
-    }  # number of times a seed has been selected in mainLoop for fuzzing
-    currSeed: dict = None # this is the dict containing all seed arguments 
-    mutationLs: list = ["replaceChar", "removeChar","insertWhite","algo"]
+    seedFreq: dict = (
+        {}
+    )  # number of times a seed has been selected in mainLoop for fuzzing
+    currSeed: dict = None  # this is the dict containing all seed arguments
+    mutationLs: list = [
+        "replaceChar",
+        "insertWhite",
+        "algo",
+        "delChar",
+        "insertChar",
+        "flipRandChar",
+        "incrChar",
+        "decrChar",
+        "pollute",
+    ]
     defaultEpochs: int = None
     iterCount: int = 0
     timelineYFails: list = []
@@ -267,19 +282,21 @@ class Fuzzer:
     timelineYIterations: list = []
     timelineX: list = []
     timelineMutatorSel = {
-        "replaceChar":0,
-        "removeChar":0,
-        "insertWhite":0,
-        "algo":0,
-        "total":0
-
+        "replaceChar": 0,
+        "insertWhite": 0,
+        "algo": 0,
+        "delChar": 0,
+        "insertChar": 0,
+        "flipRandChar": 0,
+        "incrChar": 0,
+        "decrChar": 0,
+        "pollute": 0,
+        "total": 0,
     }
 
-    def __init__(self,
-                 pwd: str,
-                 seedFolder: str,
-                 defaultEpochs: int = 20,
-                 runGetAesInput=False) -> None:
+    def __init__(
+        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=False
+    ) -> None:
         self.pwd = pwd
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == False:
@@ -297,89 +314,139 @@ class Fuzzer:
                 "runenr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
             )
 
+    def arg2Fuzz(self, input: dict) -> str:
+        # at random select variable and return key
+        # we do not return algo, as it uses its own mutation method.
+        keylist = list(input.keys())
+        keylist.remove("algo")
+        key = random.choice(keylist)
+        print("chosen " + key)
+        return key
 
-    def algoMutation(self, input:dict)->dict:
+    def delChar(self, input: dict) -> dict:
+        mutated_dict = input.copy()
+        key = self.arg2Fuzz(mutated_dict)
+
+        if isinstance(mutated_dict[key], str):
+            fuzzed = MnM.delete_character(mutated_dict[key])
+            mutated_dict[key] = fuzzed
+            print("delChar")
+            print("old dict 1" + str(input))
+            print("new dict 1" + str(mutated_dict))
+        return mutated_dict
+
+    def insertChar(self, input: dict) -> dict:
+        mutated_dict = input.copy()
+        key = self.arg2Fuzz(mutated_dict)
+
+        if isinstance(mutated_dict[key], str):
+            fuzzed = MnM.insert_character(mutated_dict[key])
+            mutated_dict[key] = fuzzed
+            print("insertChar")
+            print("old dict 1" + str(input))
+            print("new dict 1" + str(mutated_dict))
+        return mutated_dict
+
+    def flipRandChar(self, input: dict) -> dict:
+        mutated_dict = input.copy()
+        key = self.arg2Fuzz(mutated_dict)
+
+        if isinstance(mutated_dict[key], str):
+            fuzzed = MnM.flip_random_character(mutated_dict[key])
+            mutated_dict[key] = fuzzed
+            print("flipRandChar")
+            print("old dict 1" + str(input))
+            print("new dict 1" + str(mutated_dict))
+        return mutated_dict
+
+    def incrChar(self, input: dict) -> dict:
+        mutated_dict = input.copy()
+        key = self.arg2Fuzz(mutated_dict)
+
+        if isinstance(mutated_dict[key], str):
+            fuzzed = MnM.increment_character(mutated_dict[key])
+            mutated_dict[key] = fuzzed
+            print("incrChar")
+            print("old dict 1" + str(input))
+            print("new dict 1" + str(mutated_dict))
+        return mutated_dict
+
+    def decrChar(self, input: dict) -> dict:
+        mutated_dict = input.copy()
+        key = self.arg2Fuzz(mutated_dict)
+
+        if isinstance(mutated_dict[key], str):
+            fuzzed = MnM.decrement_character(mutated_dict[key])
+            mutated_dict[key] = fuzzed
+            print("decrChar")
+            print("old dict 1" + str(input))
+            print("new dict 1" + str(mutated_dict))
+        return mutated_dict
+
+    def pollute(self, input: dict) -> dict:
+        mutated_dict = input.copy()
+        key = self.arg2Fuzz(mutated_dict)
+
+        if isinstance(mutated_dict[key], str):
+            fuzzed = MnM.pollute(mutated_dict[key])
+            mutated_dict[key] = fuzzed
+            print("pollute")
+            print("old dict 1" + str(input))
+            print("new dict 1" + str(mutated_dict))
+        return mutated_dict
+
+    def algoMutation(self, input: dict) -> dict:
         print("mutation algo selected")
         output = input.copy()
-        algoOptions = ["CBC","CFB128","CTR","ECB","fail"]
+        algoOptions = ["CBC", "CFB128", "CTR", "ECB", "fail"]
         newValue = random.choice(algoOptions)
-        if (newValue == "fail"):
-            newValue = getRandomString(random.randint(0,8))
-        output['algo'] = newValue
+        if newValue == "fail":
+            newValue = getRandomString(random.randint(0, 8))
+        output["algo"] = newValue
         print("old dict 2" + str(input))
         print("new dict 2" + str(output))
         return output
 
     def replaceChar(self, input: dict) -> dict:
-        # replace character in the plaintext
+        # replace character
         # make a copy of the input dictionary
         print("replaceChar selected")
 
         mutated_dict = input.copy()
 
-        # get the string in the 'plain' field
-        plain_string = mutated_dict['plain']
-
-        # convert the string to a list so we can modify it
-        plain_list = list(plain_string)
-
-        # randomly choose a position to modify
-        position = random.randint(0, len(plain_list) - 1)
-
-        # randomly choose a replacement character
-        new_char = random.choice(
-            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[]\\;\',./{}|:?<>"\n '
-        )
-
-        # replace the character at the chosen position with the new character
-        plain_list[position] = new_char
-
-        # convert the list back to a string and update the 'plain' field in the mutated dictionary
-        mutated_dict['plain'] = ''.join(plain_list)
-
-        print("old dict 1" + str(input))
-        print("new dict 1" + str(mutated_dict))
-
-        return mutated_dict
-
-    def removeChar(self, input: dict) -> dict:
-        # remove char
-        # make a copy of the input dictionary
-        print("removeChar selected")
-
-        mutated_dict = input.copy()
-
-
         # select a random key from the dictionary
         keylist = list(mutated_dict.keys())
-        keylist.remove('algo')
+        keylist.remove("algo")
         key = random.choice(keylist)
 
-        # check if the value corresponding to the selected key is a string
         if isinstance(mutated_dict[key], str):
-            # get the string value from the selected key
-            value = mutated_dict[key]
-            # choose a random position in the string
-            position = random.randint(0, len(value) - 1)
-            # remove the character at the chosen position
-            value = value[:position] + value[position + 1:]
-            # update the value in the dictionary
-            mutated_dict[key] = value
+            plain_list = list(mutated_dict[key])
+            # randomly choose a position to modify
+            position = random.randint(0, len(plain_list) - 1)
 
-        print("old dict 1" + str(input))
-        print("new dict 1" + str(mutated_dict))
+            # randomly choose a replacement character
+            new_char = random.choice(string.printable)
+
+            # replace the character at the chosen position with the new character
+            plain_list[position] = new_char
+
+            # convert the list back to a string and update the 'plain' field in the mutated dictionary
+            mutated_dict[key] = "".join(plain_list)
+
+        print("old dict 0" + str(input))
+        print("new dict 0" + str(mutated_dict))
 
         return mutated_dict
 
     def insertWhite(self, input: dict) -> dict:
         print("insertWhite selected")
-        # insert whitespace 
+        # insert whitespace
         # make a copy of the input dictionary
         mutated_dict = input.copy()
 
         # select a random key from the dictionary
         keylist = list(mutated_dict.keys())
-        keylist.remove('algo')
+        keylist.remove("algo")
         key = random.choice(keylist)
         # check if the value corresponding to the selected key is a string
         if isinstance(mutated_dict[key], str):
@@ -388,7 +455,7 @@ class Fuzzer:
             # choose a random position in the string
             position = random.randint(0, len(value))
             # insert a white space character at the chosen position
-            value = value[:position] + ' ' + value[position:]
+            value = value[:position] + " " + value[position:]
             # update the value in the dictionary
             mutated_dict[key] = value
 
@@ -428,11 +495,11 @@ class Fuzzer:
         if numTimesPathExecute <= ave:
             print("< ave")
             currfraction = numTimesPathExecute / np.sum(valueArr)
-            energy = int(self.alpha_i / currfraction * 2**(numTimesSeedChosen))
+            energy = int(self.alpha_i / currfraction * 2 ** (numTimesSeedChosen))
         else:
             # equals to alpha_i / times path executed
             print("> ave")
-            energy = int(self.alpha_i / numTimesPathExecute)
+            energy = int(self.alpha_i / numTimesPathExecute) + 1
         energy = min(energy, self.alpha_max)
         # print(energy)
         return energy
@@ -444,20 +511,37 @@ class Fuzzer:
         # randomly choose mutation
         ind = self.getMutator()
         mutator = self.mutationLs[ind]
+        print(mutator)
         # return fuzzed seed
-        self.timelineMutatorSel['total'] += 1
+
+        self.timelineMutatorSel["total"] += 1
         if mutator == "replaceChar":
             self.timelineMutatorSel["replaceChar"] += 1
             fuzzed = self.replaceChar(self.currSeed)
-        if mutator == "removeChar":
-            self.timelineMutatorSel["removeChar"] += 1
-            fuzzed = self.removeChar(self.currSeed)
-        if mutator == "insertWhite":
+        elif mutator == "insertWhite":
             self.timelineMutatorSel["insertWhite"] += 1
             fuzzed = self.insertWhite(self.currSeed)
-        if mutator == "algo":
+        elif mutator == "algo":
             self.timelineMutatorSel["algo"] += 1
             fuzzed = self.algoMutation(self.currSeed)
+        elif mutator == "delChar":
+            self.timelineMutatorSel["delChar"] += 1
+            fuzzed = self.delChar(self.currSeed)
+        elif mutator == "insertChar":
+            self.timelineMutatorSel["insertChar"] += 1
+            fuzzed = self.insertChar(self.currSeed)
+        elif mutator == "flipRandChar":
+            self.timelineMutatorSel["flipRandChar"] += 1
+            fuzzed = self.flipRandChar(self.currSeed)
+        elif mutator == "incrChar":
+            self.timelineMutatorSel["incrChar"] += 1
+            fuzzed = self.incrChar(self.currSeed)
+        elif mutator == "decrChar":
+            self.timelineMutatorSel["decrChar"] += 1
+            fuzzed = self.decrChar(self.currSeed)
+        elif mutator == "pollute":
+            self.timelineMutatorSel["pollute"] += 1
+            fuzzed = self.pollute(self.currSeed)
         # print("New Input Selected "+str(fuzzed))
         return fuzzed
 
@@ -477,7 +561,7 @@ class Fuzzer:
                 if exitCode >= 0:
                     hashSeed = self.runner.mostRecentHash
                     self.seedFreq[hashSeed] = 0
-                
+
             except Exception as e:
                 print("innerloop")
                 print(e)
@@ -488,8 +572,8 @@ class Fuzzer:
             # count the iteration
             self.iterCount += 1
             if i % 20 == 0:
-                assert (self.getSnapshot() == True)
-                assert (self.writeDisk() == True)  # comment out later
+                assert self.getSnapshot() == True
+                assert self.writeDisk() == True  # comment out later
         return
 
     def mainLoop(self, epochs: int = None) -> None:
@@ -526,14 +610,21 @@ class Fuzzer:
     def writeDisk(self) -> bool:
         os.chdir(self.runner.projectTestingDir)
         try:
-            df = pd.DataFrame([
-                self.timelineX, self.timelineYFails, self.timelineYPaths,
-                self.timelineYIterations
-            ])
+            df = pd.DataFrame(
+                [
+                    self.timelineX,
+                    self.timelineYFails,
+                    self.timelineYPaths,
+                    self.timelineYIterations,
+                ]
+            )
             df = df.transpose()
             df.columns = ["unix_time", "failures", "total_paths", "iterations"]
             df.to_csv("python/data_list.csv")
-            df2 = pd.DataFrame(list(self.timelineMutatorSel.values()),index=list(self.timelineMutatorSel.keys()))
+            df2 = pd.DataFrame(
+                list(self.timelineMutatorSel.values()),
+                index=list(self.timelineMutatorSel.keys()),
+            )
             # print(df2)
             df2.to_csv("python/mutation_sel.csv")
         except Exception as e:
@@ -541,25 +632,28 @@ class Fuzzer:
             return False
         return True
 
-    def dumpRunner(self,filename:str) -> bool:
+    def dumpRunner(self, filename: str) -> bool:
         out: list = [
-            self.runner.hashList, self.runner.seedQDict, self.runner.pathQDict,
-            self.runner.pathFrequency, self.runner.failedPathHashLs,
-            self.runner.successPathHashLs
+            self.runner.hashList,
+            self.runner.seedQDict,
+            self.runner.pathQDict,
+            self.runner.pathFrequency,
+            self.runner.failedPathHashLs,
+            self.runner.successPathHashLs,
         ]
         os.chdir(self.pwd)
         try:
-            with open(filename, 'wb') as file:
+            with open(filename, "wb") as file:
                 pickle.dump(out, file)
         except Exception as e:
             print(e)
             return False
         return True
 
-    def loadRunner(self,filename:str) -> bool:
+    def loadRunner(self, filename: str) -> bool:
         os.chdir(self.pwd)
         try:
-            with open(filename, 'rb') as file:
+            with open(filename, "rb") as file:
                 inputs: list = pickle.load(file)
                 # print(inputs)
                 self.runner.hashList = inputs[0]
@@ -576,56 +670,27 @@ class Fuzzer:
 
 
 if __name__ == "__main__":
-    pwd = "/home/lim/mbedtls/project_testing"
     pwd = "/home/limjieshengubuntu/mbedtls-afl/project_testing"
-    import sys 
+    pwd = "/home/lim/mbedtls-afl/project_testing"
+    import sys
+
     orig_stdout = sys.stdout
-    f = open('LOGGER.txt', 'w')
+    f = open("LOGGER.txt", "w")
     sys.stdout = f
-    # runner = Runner(pwd)
-    # runner.getAesInputs("./aes_combined_seed")
-    # # print(runner.hashList)
-    # # print(runner.pathQDict.keys())
-    # # print(runner.seedQDict.keys())
-    # print("FailedHashList")
-    # pprint(runner.failedPathHashLs)
-    # print("\nSuccessHashList")
-    # pprint(runner.successPathHashLs)
-    # print("\nSeedQ")
-    # pprint(runner.seedQDict)
-    # print("\nPathFreq")
-    # pprint(runner.pathFrequency)
-
-    # assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
-    # seed = runner.getSeed()
-    # print(seed)
-    # # fuzzing to get fuzzed input dict with fuzzer class
-    fuzzed_seed = {
-        "key": "itzkbg2",
-        "key2": "itzkbg2",
-        "iv": "0123456789123456",
-        "iv2": "0123456789123456",
-        "algo": "CBC",
-        "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
-    }
-
-    # coreFuzzer = Fuzzer(pwd,
-    #                     seedFolder="./aes_combined_seed",
-    #                     defaultEpochs=2,
-    #                     runGetAesInput=False)
-    # coreFuzzer.dumpRunner("./python/runner.pkl")
-    coreFuzzer = Fuzzer(pwd,
-                        seedFolder="./aes_combined_seed",
-                        defaultEpochs=2,
-                        runGetAesInput=True)
+    coreFuzzer = Fuzzer(
+        pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=False
+    )
+    coreFuzzer.dumpRunner("./python/runner.pkl")
+    coreFuzzer = Fuzzer(
+        pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=True
+    )
     coreFuzzer.loadRunner("./python/runner.pkl")
-    # coreFuzzer.initialiseSeedFreq()
-    # seed = coreFuzzer.runner.getSeed()
-    # coreFuzzer.currSeed = coreFuzzer.runner.seedQDict[seed]
-    # energy = coreFuzzer.assignEnergy(seed)
-    # coreFuzzer.innerLoop(energy)
-    # coreFuzzer.writeDisk()
-    # print(coreFuzzer.algoMutation(fuzzed_seed))
+    # coreFuzzer.decrChar(fuzzed_seed)
+    # coreFuzzer.insertchar(fuzzed_seed)
+    # coreFuzzer.flipRandChar(fuzzed_seed)
+    # coreFuzzer.incrChar(fuzzed_seed)
+    # coreFuzzer.decrChar(fuzzed_seed)
+    # coreFuzzer.pollute(fuzzed_seed)
 
     start = time.time()
     coreFuzzer.mainLoop(5)
@@ -645,3 +710,30 @@ if __name__ == "__main__":
     # print("end of execution return value: "+str(output))
     # output = Fuzzer.runScriptUbuntu(pwd, "./aes_combined_seed/aes_combined_cbc.txt")
     # print("end of execution return value: "+str(output))
+
+    # runner = Runner(pwd)
+    # runner.getAesInputs("./aes_combined_seed")
+    # # print(runner.hashList)
+    # # print(runner.pathQDict.keys())
+    # # print(runner.seedQDict.keys())
+    # print("FailedHashList")
+    # pprint(runner.failedPathHashLs)
+    # print("\nSuccessHashList")
+    # pprint(runner.successPathHashLs)
+    # print("\nSeedQ")
+    # pprint(runner.seedQDict)
+    # print("\nPathFreq")
+    # pprint(runner.pathFrequency)
+
+    # assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
+    # seed = runner.getSeed()
+    # print(seed)
+    # # fuzzing to get fuzzed input dict with fuzzer class
+    # fuzzed_seed = {
+    #     "key": "itzkbg2",
+    #     "key2": "itzkbg2",
+    #     "iv": "0123456789123456",
+    #     "iv2": "0123456789123456",
+    #     "algo": "CBC",
+    #     "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
+    # }
