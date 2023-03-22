@@ -22,13 +22,13 @@ def getRandomString(length):
 class Runner:
     mostRecentHash: uuid = None
     hashList = []
-    currPathCov:float = 0.0
+    currPathCov: float = 0.0
     seedQCov = {}
     seedQDict = {}
     pathQDict = {}
     pathFrequency = {}
     failedPathHashLs = []
-    successPathHashLs = []
+    crashPathHashLs = []
     seedFile: str = "./python/seed.txt"
     projectTestingDir = None
     coverageFile: str = "crypt_test.c.gcov"
@@ -37,6 +37,12 @@ class Runner:
         self.projectTestingDir = pwd
 
     def getAesInputs(self, folder: str) -> bool:
+        import glob
+        os.chdir(self.projectTestingDir)
+        os.chdir("./python/results")
+        files = glob.glob("**/*.txt")
+        for f in files:
+            os.remove(f)
         os.chdir(self.projectTestingDir)
         fileList = os.listdir(folder)
         os.chdir(folder)
@@ -117,11 +123,12 @@ class Runner:
             print("Program crash no path generated")
             return -1
         import re
+
         coverage = ["gcov", "crypt_test.c", "-m"]
         p = subprocess.run(coverage, stdout=subprocess.PIPE)
         currPathCov = p.stdout.decode()
         regpattern = r"(?<=Lines executed:)(.*)(?=%)"
-        self.currPathCov = float(re.search(regpattern,currPathCov).group(0))
+        self.currPathCov = float(re.search(regpattern, currPathCov).group(0))
         if p.returncode != 0:
             self.currPathCov = p.stdout.decode()
             print("coverage gcov failed")
@@ -215,15 +222,19 @@ class Runner:
     def runTest(self, inputDict) -> int:
         # exit codes
         # 0 is intersting not fail
-        # 1 is interesting and fail
+        # 1 is interesting and fail or crash
         # -1 is not interesting
+        exitCodeRunTest = (
+            -1
+        )  # this variable is what we want to return at the end of the method
         exitCode: int = self.getPathCovFile(inputDict)
         isfail = False
+        isCrash = False
         if exitCode == 2:
             print("gcc compiling issue or gcov execution issue")
             return exit()
         elif exitCode == -1:
-            isfail = True
+            isCrash = True
             path: dict = self.crashNoPathCov()
         elif exitCode == 1:
             isfail = True
@@ -231,38 +242,74 @@ class Runner:
             isfail = False
         else:
             print("unknown exitcode crash")
-            isfail = True
+            isCrash = True
             path: dict = self.crashNoPathCov()
             # exit()
         covFilePath = self.coverageFile
         path: dict = self.parseFile(covFilePath)
         # print(path)
         interesting: bool = self.isInterestingOuter(path)
-        if interesting:
-            # print("interesting path found")
-            ids = uuid.uuid4()
+        ids = str(uuid.uuid4())
+        if isCrash or interesting:
             self.seedQDict[ids] = inputDict
             self.pathQDict[ids] = path
             self.hashList.append(ids)
             self.pathFrequency[ids] = 1
             self.mostRecentHash = ids
             self.seedQCov[ids] = self.currPathCov
+        if isCrash:
+            self.crashPathHashLs.append(ids)
+            exitCodeRunTest = 1
+            
+        elif interesting:
+            # print("interesting path found")
             print(self.seedQCov)
             if isfail:
-                # print("path is a failing path")
+                print("path is a failing path")
                 self.failedPathHashLs.append(ids)
-                return 1
+                exitCodeRunTest = 1
             else:
-                # print("path is a successful path")
-                self.successPathHashLs.append(ids)
-                return 0
+                print("path is a successful path")
+                exitCodeRunTest = 0
+        if isCrash or interesting:
+            self.writeDiskSeedQ(isfail, isCrash, ids)
         # print("path is not unique")
-        return -1
+        return exitCodeRunTest
 
     def getSeed(self) -> int:
         # get random seed
         hashind = random.randint(0, len(self.hashList) - 1)
         return self.hashList[hashind]
+
+    def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
+        # this writes the seed txt file to the results folder
+        import glob
+        import json
+
+        os.chdir(self.projectTestingDir)
+        mainfolder = "./python/results"
+        os.chdir(mainfolder)
+        if isFail == False and isCrash == False:
+            filename = "./successQ/" + str(ids) + "_path.txt"
+            seedString = json.dumps(self.seedQDict[ids])
+            print(seedString)
+            with open(filename, "w") as f:
+                f.write(seedString)
+        if isFail == True and isCrash == False:
+            filename = "./failQ/" + str(ids) + "_path.txt"
+            seedString = json.dumps(self.seedQDict[ids])
+            print(seedString)
+            with open(filename, "w") as f:
+                f.write(seedString)
+        if isFail == False and isCrash == True:
+            filename = "./crashQ/" + str(ids) + "_path.txt"
+            seedString = json.dumps(self.seedQDict[ids])
+            print(seedString)
+            with open(filename, "w") as f:
+                f.write(seedString)
+        files = glob.glob("**/*.txt")
+        print(files)
+        return
 
 
 class Fuzzer:
@@ -288,6 +335,7 @@ class Fuzzer:
     defaultEpochs: int = None
     iterCount: int = 0
     timelineYFails: list = []
+    timelineYCrashes: list = []
     timelineYPaths: list = []
     timelineYIterations: list = []
     timelineX: list = []
@@ -311,17 +359,13 @@ class Fuzzer:
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == False:
             self.runner = Runner(pwd)
-            try:
-                self.runner.getAesInputs(seedFolder)
-            except Exception as e:
-                print(e)
-                print("failed to initialise prepared inputs")
-                exit(1)
+            self.runner.getAesInputs(seedFolder)
             print("Completed initialised of prepared inputs")
         else:
             self.runner = Runner(pwd)
             print(
-                "runenr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
+                "runnr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
+                "any losses in results folder may be retrieved from runner dump"
             )
 
     def arg2Fuzz(self, input: dict) -> str:
@@ -606,11 +650,13 @@ class Fuzzer:
 
     def getSnapshot(self) -> bool:
         try:
+            crashPaths = len(self.runner.crashPathHashLs)
             failurePaths = len(self.runner.failedPathHashLs)
             totalPathsQ = len(self.runner.pathQDict.keys())
             self.timelineYFails.append(failurePaths)
             self.timelineYPaths.append(totalPathsQ)
             self.timelineYIterations.append(self.iterCount)
+            self.timelineYCrashes.append(crashPaths)
             self.timelineX.append(time.time())
         except Exception as e:
             print(e)
@@ -625,11 +671,18 @@ class Fuzzer:
                     self.timelineX,
                     self.timelineYFails,
                     self.timelineYPaths,
+                    self.timelineYCrashes,
                     self.timelineYIterations,
                 ]
             )
             df = df.transpose()
-            df.columns = ["unix_time", "failures", "total_paths", "iterations"]
+            df.columns = [
+                "unix_time",
+                "failures",
+                "unique_paths",
+                "crashes",
+                "iterations",
+            ]
             df.to_csv("python/data_list.csv")
             df2 = pd.DataFrame(
                 list(self.timelineMutatorSel.values()),
@@ -649,7 +702,8 @@ class Fuzzer:
             self.runner.pathQDict,
             self.runner.pathFrequency,
             self.runner.failedPathHashLs,
-            self.runner.successPathHashLs,
+            self.runner.crashPathHashLs,
+            self.runner.seedQCov,
         ]
         os.chdir(self.pwd)
         try:
@@ -672,6 +726,7 @@ class Fuzzer:
                 self.runner.pathFrequency = inputs[3]
                 self.runner.failedPathHashLs = inputs[4]
                 self.runner.successPathHashLs = inputs[5]
+                self.runner.seedQCov = inputs[6]
                 # print(self.runner.pathFrequency)
         except Exception as e:
             print(e)
@@ -684,12 +739,12 @@ if __name__ == "__main__":
     pwd = "/home/limjieshengubuntu/mbedtls-afl/project_testing"
     import sys
 
-    # orig_stdout = sys.stdout
-    # f = open("LOGGER.txt", "w")
-    # sys.stdout = f
-    # coreFuzzer = Fuzzer(
-    #     pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=False
-    # )
+    orig_stdout = sys.stdout
+    f = open("LOGGER.txt", "w")
+    sys.stdout = f
+    coreFuzzer = Fuzzer(
+        pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=False
+    )
     # coreFuzzer.dumpRunner("./python/runner.pkl")
     # coreFuzzer = Fuzzer(
     #     pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=True
@@ -701,14 +756,16 @@ if __name__ == "__main__":
     # # coreFuzzer.incrChar(fuzzed_seed)
     # # coreFuzzer.decrChar(fuzzed_seed)
     # # coreFuzzer.pollute(fuzzed_seed)
-
-    # start = time.time()
-    # coreFuzzer.mainLoop(5)
-    # end = time.time()
-    # timetaken = end - start
-    # print("serial: " + str(int(timetaken)) + "s")
-    # print("exit")
-    # f.close()
+    # seed = coreFuzzer.runner.hashList[0]
+    # print(seed)
+    # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
+    start = time.time()
+    # coreFuzzer.mainLoop(25)
+    end = time.time()
+    timetaken = end - start
+    print("time taken: " + str(int(timetaken)) + "s")
+    coreFuzzer.dumpRunner("25epochtestRun.pkl")
+    print("exit")
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
 
@@ -721,11 +778,11 @@ if __name__ == "__main__":
     # output = Fuzzer.runScriptUbuntu(pwd, "./aes_combined_seed/aes_combined_cbc.txt")
     # print("end of execution return value: "+str(output))
 
-    runner = Runner(pwd)
-    runner.getAesInputs("./aes_combined_seed")
-    print(runner.hashList)
-    print(runner.pathQDict.keys())
-    print(runner.seedQDict.keys())
+    # runner = Runner(pwd)
+    # runner.getAesInputs("./aes_combined_seed")
+    # print(runner.hashList)
+    # print(runner.pathQDict.keys())
+    # print(runner.seedQDict.keys())
     # print("FailedHashList")
     # pprint(runner.failedPathHashLs)
     # print("\nSuccessHashList")
@@ -747,3 +804,4 @@ if __name__ == "__main__":
     #     "algo": "CBC",
     #     "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
     # }
+    f.close()

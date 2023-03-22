@@ -72,3 +72,5 @@ massif-*
 /project_testing/python/*.csv
 /project_testing/python/*.txt
 /project_testing/python/*.pkl
+/project_testing/*.pkl
+/project_testing/python/results/*
