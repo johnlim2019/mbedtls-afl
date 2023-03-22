@@ -224,9 +224,7 @@ class Runner:
         # 0 is intersting not fail
         # 1 is interesting and fail or crash
         # -1 is not interesting
-        exitCodeRunTest = (
-            -1
-        )  # this variable is what we want to return at the end of the method
+        exitCodeRunTest = -1  # this variable is what we want to return at the end of the method
         exitCode: int = self.getPathCovFile(inputDict)
         isfail = False
         isCrash = False
@@ -292,23 +290,23 @@ class Runner:
         if isFail == False and isCrash == False:
             filename = "./successQ/" + str(ids) + "_path.txt"
             seedString = json.dumps(self.seedQDict[ids])
-            print(seedString)
+            # print(seedString)
             with open(filename, "w") as f:
                 f.write(seedString)
         if isFail == True and isCrash == False:
             filename = "./failQ/" + str(ids) + "_path.txt"
             seedString = json.dumps(self.seedQDict[ids])
-            print(seedString)
+            # print(seedString)
             with open(filename, "w") as f:
                 f.write(seedString)
         if isFail == False and isCrash == True:
             filename = "./crashQ/" + str(ids) + "_path.txt"
             seedString = json.dumps(self.seedQDict[ids])
-            print(seedString)
+            # print(seedString)
             with open(filename, "w") as f:
                 f.write(seedString)
         files = glob.glob("**/*.txt")
-        print(files)
+        # print(files)
         return
 
 
@@ -760,7 +758,7 @@ if __name__ == "__main__":
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     start = time.time()
-    # coreFuzzer.mainLoop(25)
+    coreFuzzer.mainLoop(25)
     end = time.time()
     timetaken = end - start
     print("time taken: " + str(int(timetaken)) + "s")
