@@ -74,3 +74,4 @@ massif-*
 /project_testing/python/*.pkl
 /project_testing/*.pkl
 /project_testing/python/results/*
+/project_testing/python/*.png
