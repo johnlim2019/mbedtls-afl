@@ -22,6 +22,8 @@ def getRandomString(length):
 class Runner:
     mostRecentHash: uuid = None
     hashList = []
+    currPathCov:float = 0.0
+    seedQCov = {}
     seedQDict = {}
     pathQDict = {}
     pathFrequency = {}
@@ -114,8 +116,14 @@ class Runner:
         if exitCode > 1:
             print("Program crash no path generated")
             return -1
+        import re
         coverage = ["gcov", "crypt_test.c", "-m"]
-        if subprocess.run(coverage, stdout=subprocess.DEVNULL).returncode != 0:
+        p = subprocess.run(coverage, stdout=subprocess.PIPE)
+        currPathCov = p.stdout.decode()
+        regpattern = r"(?<=Lines executed:)(.*)(?=%)"
+        self.currPathCov = float(re.search(regpattern,currPathCov).group(0))
+        if p.returncode != 0:
+            self.currPathCov = p.stdout.decode()
             print("coverage gcov failed")
             return 2
         deletenotes = "rm -rf crypt_test.gc*"
@@ -238,6 +246,8 @@ class Runner:
             self.hashList.append(ids)
             self.pathFrequency[ids] = 1
             self.mostRecentHash = ids
+            self.seedQCov[ids] = self.currPathCov
+            print(self.seedQCov)
             if isfail:
                 # print("path is a failing path")
                 self.failedPathHashLs.append(ids)
@@ -670,35 +680,35 @@ class Fuzzer:
 
 
 if __name__ == "__main__":
-    pwd = "/home/limjieshengubuntu/mbedtls-afl/project_testing"
     pwd = "/home/lim/mbedtls-afl/project_testing"
+    pwd = "/home/limjieshengubuntu/mbedtls-afl/project_testing"
     import sys
 
-    orig_stdout = sys.stdout
-    f = open("LOGGER.txt", "w")
-    sys.stdout = f
-    coreFuzzer = Fuzzer(
-        pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=False
-    )
-    coreFuzzer.dumpRunner("./python/runner.pkl")
-    coreFuzzer = Fuzzer(
-        pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=True
-    )
-    coreFuzzer.loadRunner("./python/runner.pkl")
-    # coreFuzzer.decrChar(fuzzed_seed)
-    # coreFuzzer.insertchar(fuzzed_seed)
-    # coreFuzzer.flipRandChar(fuzzed_seed)
-    # coreFuzzer.incrChar(fuzzed_seed)
-    # coreFuzzer.decrChar(fuzzed_seed)
-    # coreFuzzer.pollute(fuzzed_seed)
+    # orig_stdout = sys.stdout
+    # f = open("LOGGER.txt", "w")
+    # sys.stdout = f
+    # coreFuzzer = Fuzzer(
+    #     pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=False
+    # )
+    # coreFuzzer.dumpRunner("./python/runner.pkl")
+    # coreFuzzer = Fuzzer(
+    #     pwd, seedFolder="./aes_combined_seed", defaultEpochs=2, runGetAesInput=True
+    # )
+    # coreFuzzer.loadRunner("./python/runner.pkl")
+    # # coreFuzzer.decrChar(fuzzed_seed)
+    # # coreFuzzer.insertchar(fuzzed_seed)
+    # # coreFuzzer.flipRandChar(fuzzed_seed)
+    # # coreFuzzer.incrChar(fuzzed_seed)
+    # # coreFuzzer.decrChar(fuzzed_seed)
+    # # coreFuzzer.pollute(fuzzed_seed)
 
-    start = time.time()
-    coreFuzzer.mainLoop(5)
-    end = time.time()
-    timetaken = end - start
-    print("serial: " + str(int(timetaken)) + "s")
-    print("exit")
-    f.close()
+    # start = time.time()
+    # coreFuzzer.mainLoop(5)
+    # end = time.time()
+    # timetaken = end - start
+    # print("serial: " + str(int(timetaken)) + "s")
+    # print("exit")
+    # f.close()
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
 
@@ -711,11 +721,11 @@ if __name__ == "__main__":
     # output = Fuzzer.runScriptUbuntu(pwd, "./aes_combined_seed/aes_combined_cbc.txt")
     # print("end of execution return value: "+str(output))
 
-    # runner = Runner(pwd)
-    # runner.getAesInputs("./aes_combined_seed")
-    # # print(runner.hashList)
-    # # print(runner.pathQDict.keys())
-    # # print(runner.seedQDict.keys())
+    runner = Runner(pwd)
+    runner.getAesInputs("./aes_combined_seed")
+    print(runner.hashList)
+    print(runner.pathQDict.keys())
+    print(runner.seedQDict.keys())
     # print("FailedHashList")
     # pprint(runner.failedPathHashLs)
     # print("\nSuccessHashList")
