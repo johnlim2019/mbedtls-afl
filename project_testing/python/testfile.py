@@ -46,7 +46,7 @@ def getSnapshotCsv(dumpfile:str):
     crashPathHashLs: list = inputs[5]
     seedQCov: dict = inputs[6]
     seedFreq: dict = inputs[7]
-    pprint.pprint(pathQDict)
+    # pprint.pprint(pathQDict)
     seedQLs = []
     pathQLs = []
     pathFrequencyLs = []
@@ -72,7 +72,7 @@ def getSnapshotCsv(dumpfile:str):
         seedQLs,pathFrequencyLs,seedCovLs,seedFreqLs,isFail,isCrash
     ])
     df = df.transpose()
-    print(df.shape)
+    print(hashList)
 
     df.columns = [
         "Seed Input",
@@ -85,7 +85,7 @@ def getSnapshotCsv(dumpfile:str):
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
 
-getSnapshotCsv("5epochtestRun.pkl")
+getSnapshotCsv("python/dumpCrash.pkl")
 
 
 # import lib
