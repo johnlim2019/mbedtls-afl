@@ -321,7 +321,7 @@ class Runner:
 
 class Fuzzer:
     alpha_i = 2
-    alpha_max = 150000
+    alpha_max = 2000
     pwd: str = None
     runner: Runner
     seedFreq: dict = (
@@ -558,7 +558,7 @@ class Fuzzer:
         if numTimesPathExecute <= ave:
             print("< ave")
             currfraction = numTimesPathExecute / np.sum(valueArr)
-            energy = int(self.alpha_i / currfraction * 2 ** (numTimesSeedChosen))
+            energy = min(int(self.alpha_i / currfraction * 2 ** (numTimesSeedChosen)),self.alpha_max)
         else:
             # equals to alpha_i / times path executed
             print("> ave")
@@ -705,6 +705,7 @@ class Fuzzer:
         return True
 
     def dumpRunner(self, filename: str) -> bool:
+        # dump all th important attributes of runner obj and also seedFreq from fuzzer obj
         out: list = [
             self.runner.hashList,
             self.runner.seedQDict,
@@ -713,6 +714,7 @@ class Fuzzer:
             self.runner.failedPathHashLs,
             self.runner.crashPathHashLs,
             self.runner.seedQCov,
+            self.seedFreq
         ]
         os.chdir(self.pwd)
         try:
@@ -724,6 +726,7 @@ class Fuzzer:
         return True
 
     def loadRunner(self, filename: str) -> bool:
+        # load all th important attributes of runner obj and also seedFreq from fuzzer obj
         os.chdir(self.pwd)
         try:
             with open(filename, "rb") as file:
@@ -734,8 +737,9 @@ class Fuzzer:
                 self.runner.pathQDict = inputs[2]
                 self.runner.pathFrequency = inputs[3]
                 self.runner.failedPathHashLs = inputs[4]
-                self.runner.successPathHashLs = inputs[5]
+                self.runner.crashPathHashLs = inputs[5]
                 self.runner.seedQCov = inputs[6]
+                self.seedFreq = inputs[7]
                 # print(self.runner.pathFrequency)
         except Exception as e:
             print(e)
@@ -781,11 +785,11 @@ if __name__ == "__main__":
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     start = time.time()
-    coreFuzzer.mainLoop(150)
+    coreFuzzer.mainLoop(10)
     end = time.time()
     timetaken = end - start
     print("time taken: " + str(int(timetaken)) + "s")
-    coreFuzzer.dumpRunner("150epochtestRun.pkl")
+    coreFuzzer.dumpRunner("10epochtestRun.pkl")
     print("exit")
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
