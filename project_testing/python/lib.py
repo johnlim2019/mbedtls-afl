@@ -99,7 +99,7 @@ class Runner:
         return self.seedFile
 
     def isCrash(self, path: dict) -> bool:
-        return path[375] == 0
+        return path["375"] == 0
 
     def crashNoPathCov(self, exitCode: int) -> dict:
         # we create a path where 375 is 0 this is the main method return success line
@@ -354,6 +354,7 @@ class Fuzzer:
     timelineYPaths: list = []
     timelineYIterations: list = []
     timelineX: list = []
+    timelineYCodeCoverage = []
     timelineMutatorSel = {
         "replaceChar": 0,
         "insertWhite": 0,
@@ -681,17 +682,48 @@ class Fuzzer:
             currEpoch += 1
         return
 
+    def getCodeCoverage(self,pathQDict:dict)->float:
+        # return the percentage of code coverage 
+        #pprint.pprint(pathQDict)
+
+        # store the cumulative sum of values for each unique key
+        cumul_dict = {}
+        for val_dict in pathQDict.values():
+            for key, value in val_dict.items():
+                key = str(key)
+                if key.isdigit() == False:
+                    continue
+                if key in cumul_dict:
+                    cumul_dict[key] += value
+                else:
+                    cumul_dict[key] = value
+
+        # pprint.pprint(cumul_dict)
+        count_execute = 0;
+        for val_dict in cumul_dict.values():
+            if val_dict > 0:
+                count_execute += 1;
+        # for key, val_dict in pathQDict.items():
+        #     if '81' in val_dict:
+        #         print(f"{key} key 81 value is {val_dict['81']}")
+
+
+        return round(count_execute/len(cumul_dict.items()),5)*100
+
     def getSnapshot(self) -> bool:
         try:
             successPaths = len(self.runner.successPathHashLs)
             crashPaths = len(self.runner.crashPathHashLs)
             failurePaths = len(self.runner.failedPathHashLs)
             totalPathsQ = len(self.runner.pathQDict.keys())
+            codeCoverage = self.getCodeCoverage(self.runner.pathQDict)
+            self.timelineYSuccess.append(successPaths)
             self.timelineYFails.append(failurePaths)
             self.timelineYPaths.append(totalPathsQ)
             self.timelineYIterations.append(self.iterCount)
             self.timelineYCrashes.append(crashPaths)
             self.timelineX.append(time.time())
+            self.timelineYCodeCoverage.append(codeCoverage)
         except Exception as e:
             print(e)
             return False
@@ -707,6 +739,7 @@ class Fuzzer:
                     self.timelineYPaths,
                     self.timelineYCrashes,
                     self.timelineYIterations,
+                    self.timelineYCodeCoverage
                 ]
             )
             df = df.transpose()
@@ -716,6 +749,7 @@ class Fuzzer:
                 "unique_paths",
                 "crashes",
                 "iterations",
+                "code_coverage"
             ]
             df.to_csv("python/data_list.csv")
             df2 = pd.DataFrame(
@@ -777,15 +811,18 @@ def makeResultsDir(pwd: str) -> bool:
     success = os.path.join(pwd, "python/results/successQ")
     fail = os.path.join(pwd, "python/results/failQ")
     crash = os.path.join(pwd, "python/results/crashQ")
-    if os.path.exists(results) != True:
-        os.mkdir(results)
-    if os.path.exists(success) != True:
-        os.mkdir(success)
-    if os.path.exists(fail) != True:
-        os.mkdir(fail)
-    if os.path.exists(crash) != True:
-        os.mkdir(crash)
-
+    try:
+        if os.path.exists(results) != True:
+            os.mkdir(results)
+        if os.path.exists(success) != True:
+            os.mkdir(success)
+        if os.path.exists(fail) != True:
+            os.mkdir(fail)
+        if os.path.exists(crash) != True:
+            os.mkdir(crash)
+    except:
+        return False
+    return True
 
 def getSnapshotCsv(dumpfile: str):
     os.chdir(pwd)
@@ -826,7 +863,6 @@ def getSnapshotCsv(dumpfile: str):
     )
     df = df.transpose()
     print(df.shape)
-
     df.columns = [
         "Seed Input",
         "Path Frequency",
@@ -834,6 +870,7 @@ def getSnapshotCsv(dumpfile: str):
         "Seed Frequency",
         "Fail Path",
         "Crash Path",
+        "Total Code Coverage"
     ]
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
@@ -863,11 +900,11 @@ if __name__ == "__main__":
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     start = time.time()
-    coreFuzzer.mainLoop(10)
+    coreFuzzer.mainLoop(5)
     end = time.time()
     timetaken = end - start
     print("time taken: " + str(int(timetaken)) + "s")
-    coreFuzzer.dumpRunner("10epochtestRun.pkl")
+    coreFuzzer.dumpRunner("5epochtestRun.pkl")
     print("exit")
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
