@@ -9,7 +9,7 @@ import numpy as np
 import pickle
 import string
 import mutatemethods as MnM
-
+import threading
 
 def getRandomString(length):
     # choose from all lowercase letter
@@ -383,6 +383,7 @@ class Fuzzer:
         "algo": "CBC",
         "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
     }
+    index = str(random.randint(0,256))
 
     def __init__(
         self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True
@@ -658,10 +659,8 @@ class Fuzzer:
                 self.dumpRunner("./python/dumpCrash.pkl")
                 exit(1)
             # count the iteration
-            self.iterCount += 1
-            if i % 20 == 0:
-                assert self.getSnapshot() == True
-                assert self.writeDisk() == True  # comment out later
+            self.iterCount += 1    
+                    
         return
 
     def mainLoop(self, epochs: int = None) -> None:
@@ -670,7 +669,8 @@ class Fuzzer:
         currEpoch = 0
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
-        while currEpoch < epochs:
+        
+        while True:
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
             seedHash = self.runner.getSeed()
@@ -681,6 +681,10 @@ class Fuzzer:
             self.innerLoop(energy)
             currEpoch += 1
         return
+
+    def timeline(self):
+        assert self.getSnapshot() == True
+        assert self.writeDisk() == True  # comment out later
 
     def getCodeCoverage(self,pathQDict:dict)->float:
         # return the percentage of code coverage 
@@ -751,7 +755,7 @@ class Fuzzer:
                 "iterations",
                 "code_coverage"
             ]
-            df.to_csv("python/data_list.csv")
+            df.to_csv("python/plot_data/data_list_"+self.index+".csv")
             df2 = pd.DataFrame(
                 list(self.timelineMutatorSel.values()),
                 index=list(self.timelineMutatorSel.keys()),
@@ -811,6 +815,8 @@ def makeResultsDir(pwd: str) -> bool:
     success = os.path.join(pwd, "python/results/successQ")
     fail = os.path.join(pwd, "python/results/failQ")
     crash = os.path.join(pwd, "python/results/crashQ")
+    plot_data = os.path.join(pwd, "python/plot_data")
+
     try:
         if os.path.exists(results) != True:
             os.mkdir(results)
@@ -820,6 +826,8 @@ def makeResultsDir(pwd: str) -> bool:
             os.mkdir(fail)
         if os.path.exists(crash) != True:
             os.mkdir(crash)
+        if os.path.exists(plot_data) != True:
+            os.mkdir(plot_data)
     except:
         return False
     return True
@@ -875,6 +883,16 @@ def getSnapshotCsv(dumpfile: str):
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
 
+def every(delay,task):
+    next_time = time.time() + delay
+    while True:
+        time.sleep(max(0, next_time - time.time()))
+        try:
+            task()
+        except Exception as e:
+            print(e)
+        # skip tasks if we are behind schedule:
+        next_time += (time.time() - next_time) // delay * delay + delay
 
 if __name__ == "__main__":
     pwd = os.path.dirname(os.path.abspath("LICENSE")) + "/project_testing"
@@ -899,7 +917,10 @@ if __name__ == "__main__":
     # seed = coreFuzzer.runner.hashList[0]
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
+    
+    
     start = time.time()
+    threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
     coreFuzzer.mainLoop(5)
     end = time.time()
     timetaken = end - start
