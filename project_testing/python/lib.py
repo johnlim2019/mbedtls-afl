@@ -918,7 +918,7 @@ if __name__ == "__main__":
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     
-    
+    coreFuzzer.timeline()
     start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
     coreFuzzer.mainLoop(5)
