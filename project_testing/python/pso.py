@@ -115,12 +115,23 @@ if __name__ == "__main__":
     import os
     pwd = os.path.dirname(os.path.abspath("LICENSE")) + "/project_testing"
     f = open("PSOLOGGER.txt", "w")
-
     import sys
     sys.stdout = f
-
-    pso = PSO(8, 7, 1, 100, 3, diversity_cost)
+    #Number of swarms to initialize
+    population = 8
+    #Dimensions = number of mutator functions
+    dimension = 7
+    #possible positions
+    position_min = 1
+    position_max = 100
+    #iterations
+    generation = 3
+    #cost function taking in a swarm as input
+    cost_function = diversity_cost
+    
+    pso = PSO(population, dimension, position_min, position_max, generation, cost_function)
     pso.run()
+
     print("Best Selection is " + str(normalize(pso.gbest_position)))
     f.close()
 
