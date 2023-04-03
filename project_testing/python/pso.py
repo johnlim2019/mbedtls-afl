@@ -107,7 +107,7 @@ def diversity_cost(particle):
     fuzzer = Fuzzer(
         pwd, seedFolder="./project_seed_q", defaultEpochs=1, runGetAesInput=True, p=normalize(particle)
     )
-    fuzzer.mainLoop(1)
+    fuzzer.fuzz(1)
     pathDict = fuzzer.interestingMutatorSel
     return shannon_diversity(pathDict)
 

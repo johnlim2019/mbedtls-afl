@@ -398,11 +398,8 @@ class Fuzzer:
     index = str(random.randint(0,256))
 
     def __init__(
-<<<<<<< Updated upstream
-        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/7,1/7,1/7,1/7,1/7,1/7,1/7]
-=======
+
         self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/8, 1/8, 1/8, 1/8, 1/8, 1/8,1/8,1/8]
->>>>>>> Stashed changes
     ) -> None:
         self.selectorProbabilities:list = p
         self.pwd = pwd
@@ -702,7 +699,7 @@ class Fuzzer:
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
         
-        for i in range(epochs):
+        while(True):
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
             seedHash = self.runner.getSeed()
@@ -714,8 +711,25 @@ class Fuzzer:
             currEpoch += 1
         return
 
-    def fuzz(self):
-        self.mainloop(5)
+    def fuzz(self,epochs: int = None):
+        if epochs == None:
+            epochs = self.defaultEpochs
+        currEpoch = 0
+        print("Epoches in total: " + str(epochs))
+        self.initialiseSeedFreq()
+        print("\n\n_______________________ new main loop")
+        
+        for i in range(epochs):
+            print("\n------------------ epoch " + str(currEpoch))
+            pprint(self.seedFreq)
+            seedHash = self.runner.getSeed()
+            self.updateSeedFreq(seedHash)  # update the record
+            self.currSeed = self.runner.seedQDict[seedHash]
+            energy = self.assignEnergy(seedHash)
+            print("energy " + str(energy))
+            self.innerLoop(energy)
+            currEpoch += 1
+        return
 
     def timeline(self):
         assert self.getSnapshot() == True
