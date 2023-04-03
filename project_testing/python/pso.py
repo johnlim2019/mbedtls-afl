@@ -50,7 +50,7 @@ class PSO:
         # Particle's best position
         pbest_position = particles
         # Fitness
-        pbest_fitness = [fitness_function(p) for p in particles]
+        pbest_fitness = [self.fitness_function(p) for p in particles]
         # Index of the best particle
         gbest_index = np.argmax(pbest_fitness)
         # Global best particle position
@@ -69,7 +69,7 @@ class PSO:
                 # Move the particles to new position
                 particles[n] = self.update_position(particles[n], velocity[n])
             # Calculate the fitness value
-            pbest_fitness = [fitness_function(p) for p in particles]
+            pbest_fitness = [self.fitness_function(p) for p in particles]
             # Find the index of the best particle
             gbest_index = np.argmax(pbest_fitness)
             # Update the position of the best particle
@@ -86,20 +86,13 @@ def normalize(particle):
         total += p
     return [p/total for p in particle]
 
-def fitness_function(particle):
-    global pwd
-    fuzzer = Fuzzer(
-        pwd, seedFolder="./project_seed_q", defaultEpochs=1, runGetAesInput=True, p=normalize(particle)
-    )
-    fuzzer.mainLoop(1)
-    return len(fuzzer.runner.pathQDict)
-
 def shannon_diversity(species : dict):
-    total = sum(dict.values())
+    total = sum(species.values())
     output = 0
     for key in species:
         p = species[key]/total
-        output += math.log(p) * p
+        if p!= 0:
+            output += math.log(p) * p
     return -output
 
 def diversity_cost(particle):
@@ -118,14 +111,14 @@ if __name__ == "__main__":
     import sys
     sys.stdout = f
     #Number of swarms to initialize
-    population = 30
+    population = 40
     #Dimensions = number of mutator functions
     dimension = 8
     #possible positions
     position_min = 1
     position_max = 100
     #iterations
-    generation = 10
+    generation = 5
     #cost function taking in a swarm as input
     cost_function = diversity_cost
     

@@ -4,7 +4,7 @@ import random
 def delete_character(s: str) -> str:
     if s == "":
         return s
-
+    
     pos = random.randint(0, len(s) - 1)
     return s[:pos] + s[pos + 1:]
 
@@ -75,7 +75,7 @@ def pollute(s: str) ->str:
         return s
 
     pos = random.randint(0, len(s) - 1)
-    print("polluting " + str(pos))
+    #print("polluting " + str(pos))
     if (pos == 0):
         if len(s) > 1:
             return s[pos] + s[pos]+ s[pos + 1:]
