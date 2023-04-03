@@ -33,6 +33,7 @@ class Runner:
     seedFile: str = "./python/seed.txt"
     projectTestingDir = None
     coverageFile: str = "crypt_test.c.gcov"
+    sortedDict = {}
 
     ##hide
     crashExitCode: dict = None
@@ -40,11 +41,17 @@ class Runner:
     def __init__(self, pwd: str):
         self.projectTestingDir = pwd
 
+    def peachMinset(self):
+        seedQCov: dict = self.seedQCov
+        sorted_dict = dict(sorted(seedQCov.items(), key=lambda x: x[1], reverse=True))
+        print(sorted_dict)
+        return sorted_dict
+
     def getAesInputs(self, folder: str) -> bool:
         import glob
         print(self.projectTestingDir)
         os.chdir(self.projectTestingDir)
-    
+
         os.chdir("./python/results")
         files = glob.glob("**/*.txt")
         for f in files:
@@ -291,10 +298,21 @@ class Runner:
         # print("path is not unique")
         return exitCodeRunTest
 
-    def getSeed(self) -> int:
+    def getSeed(self,seedFreq:dict) -> int:
         # get random seed
-        hashind = random.randint(0, len(self.hashList) - 1)
-        return self.hashList[hashind]
+        # hashind = random.randint(0, len(self.hashList) - 1)
+        print('GET SEED')
+        sorted_dict = self.peachMinset()
+        hash = list(sorted_dict.keys())[0]
+        freq = list(seedFreq.values())
+        ave = sum(freq)/len(freq)
+        currentIndex = 0
+        while seedFreq[hash] > ave:
+            currentIndex += 1
+            hash = list(sorted_dict.keys())[currentIndex]
+        print("SELECTED HASH SEED "+str(hash))
+        print(self.seedQDict)
+        return hash
 
     def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
         # this writes the seed txt file to the results folder
@@ -336,8 +354,8 @@ class Fuzzer:
         {}
     )  # number of times a seed has been selected in mainLoop for fuzzing
     currSeed: dict = None  # this is the dict containing all seed arguments
-    
-    
+
+
     mutationLs: list = [
         "insertWhite",
         "algo",
@@ -398,22 +416,42 @@ class Fuzzer:
     index = str(random.randint(0,256))
 
     def __init__(
-        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [0.3344529896108227, 0.2425142106686848, 0.05343304586981843, 0.04254537824939508, 0.08073447644519034, 0.11534661154052535, 0.13097328761556323]
+
+        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/8, 1/8, 1/8, 1/8, 1/8, 1/8,1/8,1/8]
     ) -> None:
-        self.selectorProbabilities:list = p
         self.pwd = pwd
+        self.selectorProbabilities:list = self.read_pso()
+        if self.selectorProbabilities == None:
+            self.selectorProbabilities:list = p
+        print()
+        print("mutator p-distribution: "+str(self.selectorProbabilities))
+        print()
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == True:
             self.runner = Runner(pwd)
             self.runner.getAesInputs(seedFolder)
-            print("Completed initialised of prepared inputs")
+            print("Completed initialisation of prepared inputs")
         else:
             self.runner = Runner(pwd)
             print(
                 "runnr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
                 "any losses in results folder may be retrieved from runner dump"
             )
-
+    def read_pso(self)->list:
+        # look for pso_results.txt in file 
+        os.chdir(self.pwd)
+        try:
+            with open('./python/PSO_results.txt','r') as file:
+                line = file.read()
+        except:
+            return None
+        line = line[1:-1]
+        line = line.split(",")
+        print(line)
+        p = []
+        for i in line:
+            p.append(float(i))
+        return p
     def arg2Fuzz(self, input: dict) -> str:
         # at random select variable and return key
         # we do not return algo, as it uses its own mutation method.
@@ -563,7 +601,7 @@ class Fuzzer:
         print("new dict 2" + str(mutated_dict))
 
         return mutated_dict
-    
+
     mutationFunctions:list = [
         insertWhite,
         delChar,
@@ -573,7 +611,7 @@ class Fuzzer:
         decrChar,
         pollute,
     ]
-    
+
     def initialiseSeedFreq(self) -> bool:
         # before calling fuzzing, we populate the seedFreq which is the number of times the seed is called from CoreFuzzer.mainLoop()
         try:
@@ -618,7 +656,7 @@ class Fuzzer:
         return energy
 
     def getMutator(self) -> int:
-        return np.random.choice([0,1,2,3,4,5,6], p=self.selectorProbabilities)
+        return np.random.choice([0,1,2,3,4,5,6,7], p=self.selectorProbabilities)
 
     def fuzzInput(self) -> dict:
         # randomly choose mutation
@@ -664,7 +702,7 @@ class Fuzzer:
         # print("_______________________ new inner loop")
         print("Energy Assigned: " + str(energy))
         for i in range(energy):
-            
+
             self.currSeed = self.fuzzInput()
             # run new fuzzed seed
             try:
@@ -687,8 +725,8 @@ class Fuzzer:
                 print("Successfully saved run data.")
                 exit(1)
             # count the iteration
-            self.iterCount += 1    
-                    
+            self.iterCount += 1
+
         return
 
     def mainLoop(self, epochs: int = None) -> None:
@@ -698,11 +736,32 @@ class Fuzzer:
         print("Epoches in total: " + str(epochs))
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
-        
+
         while True:
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed()
+            seedHash = self.runner.getSeed(self.seedFreq)
+            self.updateSeedFreq(seedHash)  # update the record
+            print(seedHash)
+            self.currSeed = self.runner.seedQDict[seedHash]
+            energy = self.assignEnergy(seedHash)
+            print("energy " + str(energy))
+            self.innerLoop(energy)
+            currEpoch += 1
+        return
+
+    def pso_fuzz(self,epochs: int = None):
+        if epochs == None:
+            epochs = self.defaultEpochs
+        currEpoch = 0
+        print("Epoches in total: " + str(epochs))
+        self.initialiseSeedFreq()
+        print("\n\n_______________________ new main loop")
+
+        for i in range(epochs):
+            print("\n------------------ epoch " + str(currEpoch))
+            pprint(self.seedFreq)
+            seedHash = self.runner.getSeed(self.seedFreq)
             self.updateSeedFreq(seedHash)  # update the record
             self.currSeed = self.runner.seedQDict[seedHash]
             energy = self.assignEnergy(seedHash)
@@ -711,15 +770,12 @@ class Fuzzer:
             currEpoch += 1
         return
 
-    def fuzz(self):
-        self.mainloop(5)
-
     def timeline(self):
         assert self.getSnapshot() == True
         assert self.writeDisk() == True  # comment out later
 
     def getCodeCoverage(self,pathQDict:dict)->float:
-        # return the percentage of code coverage 
+        # return the percentage of code coverage
         #pprint.pprint(pathQDict)
 
         # store the cumulative sum of values for each unique key
@@ -933,57 +989,17 @@ if __name__ == "__main__":
     import sys
 
     orig_stdout = sys.stdout
-    f = open("LOGGER.txt", "w")
-    sys.stdout = f
+    # f = open("LOGGER.txt", "w")
+    # sys.stdout = f
+
     coreFuzzer = Fuzzer(
         pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True
     )
-    # coreFuzzer.innerLoop(10)
-    # print(coreFuzzer.runner.crashPathHashLs)
-    # # coreFuzzer.decrChar(fuzzed_seed)
-    # # coreFuzzer.insertchar(fuzzed_seed)
-    # # coreFuzzer.flipRandChar(fuzzed_seed)
-    # # coreFuzzer.incrChar(fuzzed_seed)
-    # # coreFuzzer.decrChar(fuzzed_seed)
-    # # coreFuzzer.pollute(fuzzed_seed)
-    # seed = coreFuzzer.runner.hashList[0]
-    # print(seed)
-    # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     
     coreFuzzer.timeline()
     start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
     coreFuzzer.mainLoop()
     print("exit")
-    # run coverage and log if it is intereing. we also add it to failQ if it is failing
-    # runner.runTest(fuzzed_seed)
 
-    # Fuzzer.createSeedFile(
-    #     "itzkbg2", "itzkbg2", "0123456789123456", "0123456789123456", "CBC",
-    #     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
-    # )
-    # output = Fuzzer.runScriptUbuntu(pwd, "./python/seed.txt")
-    # print("end of execution return value: "+str(output))
-    # output = Fuzzer.runScriptUbuntu(pwd, "./aes_combined_seed/aes_combined_cbc.txt")
-    # print("end of execution return value: "+str(output))
-
-    # runner = Runner(pwd)
-    # runner.getAesInputs("./aes_combined_seed")
-    # print(runner.hashList)
-    # print(runner.pathQDict.keys())
-    # print(runner.seedQDict.keys())
-    # print("FailedHashList")
-    # pprint(runner.failedPathHashLs)
-    # print("\nSuccessHashList")
-    # pprint(runner.successPathHashLs)
-    # print("\nSeedQ")
-    # pprint(runner.seedQDict)
-    # print("\nPathFreq")
-    # pprint(runner.pathFrequency)
-
-    # assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
-    # seed = runner.getSeed()
-    # print(seed)
-    # # fuzzing to get fuzzed input dict with fuzzer class
-
-    f.close()
+    # f.close()

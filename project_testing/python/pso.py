@@ -107,7 +107,7 @@ def diversity_cost(particle):
     fuzzer = Fuzzer(
         pwd, seedFolder="./project_seed_q", defaultEpochs=1, runGetAesInput=True, p=normalize(particle)
     )
-    fuzzer.mainLoop(1)
+    fuzzer.pso_fuzz(1)
     pathDict = fuzzer.interestingMutatorSel
     return shannon_diversity(pathDict)
 
@@ -115,12 +115,23 @@ if __name__ == "__main__":
     import os
     pwd = os.path.dirname(os.path.abspath("LICENSE")) + "/project_testing"
     f = open("PSOLOGGER.txt", "w")
-
     import sys
     sys.stdout = f
-
-    pso = PSO(8, 7, 1, 100, 3, diversity_cost)
+    #Number of swarms to initialize
+    population = 30
+    #Dimensions = number of mutator functions
+    dimension = 8
+    #possible positions
+    position_min = 1
+    position_max = 100
+    #iterations
+    generation = 10
+    #cost function taking in a swarm as input
+    cost_function = diversity_cost
+    
+    pso = PSO(population, dimension, position_min, position_max, generation, cost_function)
     pso.run()
+
     print("Best Selection is " + str(normalize(pso.gbest_position)))
     f.close()
 

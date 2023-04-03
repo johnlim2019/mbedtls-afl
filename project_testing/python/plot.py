@@ -58,23 +58,22 @@ def getSnapshotCsv(dumpfile:str):
 def average_csv_files_s(file_paths,output_path):
     file_dfs = []
     for i in file_paths:
-        file_dfs.append(pd.read_csv(i))
-    
+        if ("DS_Store" in i):
+            print(i)
+            continue
+        file_dfs.append(pd.read_csv(i,encoding='utf-8'))
     columns = file_dfs[0].columns
     min_rows = []
     for i in file_dfs:
         # update unix time to s from start
-        i['unix_time'] = i['unix_time'] - i['unix_time'][0]
+        i['unix_time'] -= i['unix_time'][0]
         min_rows.append(i.shape[0])
     min_row_index = min(min_rows)
-    
-    
-
 
     averages_df = pd.DataFrame(
         columns=list(columns[1:])
     )
-    print(averages_df);
+    print(averages_df)
     column_index_range = len(columns)
     for row_index in range(min_row_index):
         row_averages = []
@@ -93,24 +92,26 @@ def average_csv_files_s(file_paths,output_path):
     print(averages_df.head())
     averages_df.to_csv(output_path, index=False)
 
-
-
+def get_afl_time_data():
+    df = pd.read_csv("project_testing/AFL Results/plot_data.txt")
+    df['paths_no_crash'] = df[' paths_total'] - df[' unique_crashes'] - df[' unique_hangs']
+    df['# unix_time'] = df['# unix_time'] - df['# unix_time'][0]
+    print(df.columns)
+    return df
 if __name__ == '__main__':
 
     # read the dumpfile 
     getSnapshotCsv('project_testing/python/dumpCrash.pkl')
 
 
-
     # PREP PLOT DATA
-    path = "project_testing/python/plot_data/"
+    # prep no optimisation data
+    path = "project_testing/python/plot_data_no_optimisation/"
     listop = os.listdir(path)
     for index,file in enumerate(listop):
         listop[index] = path+file 
     print(listop)
-    average_csv_files_s(listop,"project_testing/python/data_list.csv")
-
-
+    average_csv_files_s(listop,"project_testing/python/data_list_no_optimisation.csv")
 
 
     # USING PREP DATA to get the time to find first crash.
@@ -123,19 +124,26 @@ if __name__ == '__main__':
     with open("project_testing/python/time_to_first_crash",'w') as f:
         f.write(str(time_out))
 
+    afl_df = get_afl_time_data()
+
     # PLOT
     # read in the csv data as a Pandas DataFrame
     df = pd.read_csv('project_testing/python/data_list.csv')
+    no_optimisation_df = pd.read('project_testing/python/data_list_no_optimisation.csv')
 
     # extract columns to plot
+    afl_columns = [' unique_crashes',' paths_total']
     cols_to_plot = ['failures', 'unique_paths', 'crashes' ,'iterations','code_coverage']
     titles = ['failures', 'unique_paths', 'run_time_crashes' ,'fuzzed_inputs','code_coverage']
     # plot each column in a separate subplot
     fig, axes = plt.subplots(nrows=len(cols_to_plot), ncols=1, figsize=(10,10))
     for i, col in enumerate(cols_to_plot):
-        axes[i].plot(unix_time, df[col])
+        axes[i].plot(unix_time, df[col],label='No Opt')
+        if i < 2:
+            axes[i].plot(afl_df['# unix_time'][:len(unix_time)],afl_df[afl_columns[i]][:len(unix_time)],'k--',label='AFL')
         axes[i].set_xlabel('Time in s')
         axes[i].set_ylabel(col)
+        axes[i].legend(loc='upper right')
         axes[i].set_title(titles[i])
     fig.tight_layout()
     plt.savefig("project_testing/python/random_fuzzer_ontime.png")
