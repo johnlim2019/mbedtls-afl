@@ -42,8 +42,9 @@ class Runner:
 
     def getAesInputs(self, folder: str) -> bool:
         import glob
-
+        print(self.projectTestingDir)
         os.chdir(self.projectTestingDir)
+    
         os.chdir("./python/results")
         files = glob.glob("**/*.txt")
         for f in files:
@@ -120,7 +121,7 @@ class Runner:
             print(e)
             print("unable to change pwd")
             return 2
-        compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls"
+        compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls -w"
         if os.system(compileStr) != 0:
             print("did not compile")
             return 2
@@ -335,8 +336,9 @@ class Fuzzer:
         {}
     )  # number of times a seed has been selected in mainLoop for fuzzing
     currSeed: dict = None  # this is the dict containing all seed arguments
+    
+    
     mutationLs: list = [
-        "replaceChar",
         "insertWhite",
         "algo",
         "delChar",
@@ -367,6 +369,16 @@ class Fuzzer:
         "pollute": 0,
         "total": 0,
     }
+    interestingMutatorSel = {
+        "insertWhite": 0,
+        "algo": 0,
+        "delChar": 0,
+        "insertChar": 0,
+        "flipRandChar": 0,
+        "incrChar": 0,
+        "decrChar": 0,
+        "pollute": 0,
+    }
     crashinput = {
         "key": '\x08¢\x08`\x082L [\x0f\x1f  ¡   (()\x0bónN\x02\x03\x03    -    ;ó~~~#-\x8a\x83"äää333\xa06«xV \x1e \x13\x0f   \x86kr\x05\x06\x0622T\x86CCCU& Z `\x15\x15\x15\x8aj  c%6åÅå   )))\x17\x169<m$mÿ`A==  ! R\x1e!>\x0b0q m\x1dKL\x00LE\x89s\x7f\x7f\x7f ÔÔÔ4 ((!  Û;\r\x7f Z!\\Ó!!\x0b\x0b\x0c\x0b../.\x0f\x0f\x0f\x0f\x99 j²}ll\x91ë\'£\x00!\x7f \x83 \x01!!!jvA  ©\t)AA  \x99\x7f"""!=\x81"¤k\x84_wS    \x90\x1d\x1d\x1d\x81  øøQ! \x07Î\x87  \x84ssQ. .~   çh:ÑÑÑ\x0f  !\r_ð \x83\x83\x83\x83\x83  g½½!  %  \x01 \x1f   k kk --\\\\]',
         "key2": '^\x1ey\x1e\x13cabhRt\x98>\x9e \x91\x91 .\x12G(G1\x9bf# 2\x89\x8a\x88 \x056 9" (\x1a\x0b \x1f"p8\x9d\x9d\x9d\x1f]! /»gh glÃ\x04g z\x1cfF3\x0e\x0e§§9Y\x18O\x1f  \x01 !\x14g?\x88\x0b%\x1f %8êêêêêttt r#Êuv  !\x13 YW5DD+D //Û/ 3 "aS\x1f#^VRRR!EÖ×ÔÔÀ!!6¢MºT\x9aí>ÝÝÝé(ìê@]\x1fNf\x1e\x1f¾b[\'H\'h êz)!!¿@ \\ äZ¦{«zs\x0b1 !¤Ûßr  . "k®h qo  t\x1e1 \x9c+ ììì#( :$p1\n0   }\tIH]!|||nnnBAfA\x14\x15\x15ÛÚ :Û()^^   \x1f7éJnò±V ñòó!,I&%ãââ\x1f\x1f" \x1f\x1f < Hölllìé ºs\x7f+cúú}}l@ fg+zH  3   Ø\x1d]!Ç 6   !$ Í$$',
@@ -386,8 +398,9 @@ class Fuzzer:
     index = str(random.randint(0,256))
 
     def __init__(
-        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True
+        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [0.3344529896108227, 0.2425142106686848, 0.05343304586981843, 0.04254537824939508, 0.08073447644519034, 0.11534661154052535, 0.13097328761556323]
     ) -> None:
+        self.selectorProbabilities:list = p
         self.pwd = pwd
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == True:
@@ -550,7 +563,17 @@ class Fuzzer:
         print("new dict 2" + str(mutated_dict))
 
         return mutated_dict
-
+    
+    mutationFunctions:list = [
+        insertWhite,
+        delChar,
+        insertChar,
+        flipRandChar,
+        incrChar,
+        decrChar,
+        pollute,
+    ]
+    
     def initialiseSeedFreq(self) -> bool:
         # before calling fuzzing, we populate the seedFreq which is the number of times the seed is called from CoreFuzzer.mainLoop()
         try:
@@ -595,12 +618,13 @@ class Fuzzer:
         return energy
 
     def getMutator(self) -> int:
-        return random.randint(0, len(self.mutationLs) - 1)
+        return np.random.choice([0,1,2,3,4,5,6], p=self.selectorProbabilities)
 
     def fuzzInput(self) -> dict:
         # randomly choose mutation
         ind = self.getMutator()
-        mutator = self.mutationLs[ind]
+        mutator= self.mutationLs[ind]
+        self.currMutator = mutator
         print(mutator)
         # return fuzzed seed
 
@@ -638,7 +662,9 @@ class Fuzzer:
     def innerLoop(self, energy: int) -> None:
         # looping based on energy
         # print("_______________________ new inner loop")
+        print("Energy Assigned: " + str(energy))
         for i in range(energy):
+            
             self.currSeed = self.fuzzInput()
             # run new fuzzed seed
             try:
@@ -650,6 +676,7 @@ class Fuzzer:
                 if exitCode >= 0:
                     hashSeed = self.runner.mostRecentHash
                     self.seedFreq[hashSeed] = 0
+                    self.interestingMutatorSel[self.currMutator] += 1
 
             except Exception as e:
                 print("innerloop")
@@ -657,6 +684,7 @@ class Fuzzer:
                 self.getSnapshot()
                 self.writeDisk()
                 self.dumpRunner("./python/dumpCrash.pkl")
+                print("Successfully saved run data.")
                 exit(1)
             # count the iteration
             self.iterCount += 1    
@@ -667,6 +695,7 @@ class Fuzzer:
         if epochs == None:
             epochs = self.defaultEpochs
         currEpoch = 0
+        print("Epoches in total: " + str(epochs))
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
         
@@ -681,6 +710,9 @@ class Fuzzer:
             self.innerLoop(energy)
             currEpoch += 1
         return
+
+    def fuzz(self):
+        self.mainloop(5)
 
     def timeline(self):
         assert self.getSnapshot() == True
@@ -921,11 +953,7 @@ if __name__ == "__main__":
     coreFuzzer.timeline()
     start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
-    coreFuzzer.mainLoop(5)
-    end = time.time()
-    timetaken = end - start
-    print("time taken: " + str(int(timetaken)) + "s")
-    coreFuzzer.dumpRunner("5epochtestRun.pkl")
+    coreFuzzer.mainLoop()
     print("exit")
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
