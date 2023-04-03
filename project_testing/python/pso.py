@@ -68,12 +68,12 @@ class PSO:
                 velocity[n] = self.update_velocity(particles[n], velocity[n], pbest_position[n], self.gbest_position)
                 # Move the particles to new position
                 particles[n] = self.update_position(particles[n], velocity[n])
-                # Calculate the fitness value
-                pbest_fitness = [fitness_function(p) for p in particles]
-                # Find the index of the best particle
-                gbest_index = np.argmax(pbest_fitness)
-                # Update the position of the best particle
-                gbest_position = pbest_position[gbest_index]
+            # Calculate the fitness value
+            pbest_fitness = [fitness_function(p) for p in particles]
+            # Find the index of the best particle
+            gbest_index = np.argmax(pbest_fitness)
+            # Update the position of the best particle
+            gbest_position = pbest_position[gbest_index]
         print('Global Best Position: ', gbest_position)
         print('Best Fitness Value: ', min(pbest_fitness))
         print('Average Particle Best Fitness Value: ', np.average(pbest_fitness))
