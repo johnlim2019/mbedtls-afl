@@ -619,7 +619,7 @@ class Fuzzer:
         return energy
 
     def getMutator(self) -> int:
-        return np.random.choice([0,1,2,3,4,5,6,7,8], p=self.selectorProbabilities)
+        return np.random.choice([0,1,2,3,4,5,6,7], p=self.selectorProbabilities)
 
     def fuzzInput(self) -> dict:
         # randomly choose mutation
