@@ -398,7 +398,11 @@ class Fuzzer:
     index = str(random.randint(0,256))
 
     def __init__(
+<<<<<<< Updated upstream
         self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/7,1/7,1/7,1/7,1/7,1/7,1/7]
+=======
+        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/8, 1/8, 1/8, 1/8, 1/8, 1/8,1/8,1/8]
+>>>>>>> Stashed changes
     ) -> None:
         self.selectorProbabilities:list = p
         self.pwd = pwd
@@ -618,7 +622,7 @@ class Fuzzer:
         return energy
 
     def getMutator(self) -> int:
-        return np.random.choice([0,1,2,3,4,5,6], p=self.selectorProbabilities)
+        return np.random.choice([0,1,2,3,4,5,6,7,8], p=self.selectorProbabilities)
 
     def fuzzInput(self) -> dict:
         # randomly choose mutation

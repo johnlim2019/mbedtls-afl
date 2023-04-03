@@ -120,7 +120,7 @@ if __name__ == "__main__":
     #Number of swarms to initialize
     population = 8
     #Dimensions = number of mutator functions
-    dimension = 7
+    dimension = 8
     #possible positions
     position_min = 1
     position_max = 100
