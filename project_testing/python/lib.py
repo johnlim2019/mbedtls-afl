@@ -401,20 +401,39 @@ class Fuzzer:
 
         self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/8, 1/8, 1/8, 1/8, 1/8, 1/8,1/8,1/8]
     ) -> None:
-        self.selectorProbabilities:list = p
         self.pwd = pwd
+        self.selectorProbabilities:list = self.read_pso()
+        if self.selectorProbabilities == None:
+            self.selectorProbabilities:list = p
+        print()
+        print("mutator p-distribution: "+str(self.selectorProbabilities))
+        print()
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == True:
             self.runner = Runner(pwd)
             self.runner.getAesInputs(seedFolder)
-            print("Completed initialised of prepared inputs")
+            print("Completed initialisation of prepared inputs")
         else:
             self.runner = Runner(pwd)
             print(
                 "runnr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
                 "any losses in results folder may be retrieved from runner dump"
             )
-
+    def read_pso(self)->list:
+        # look for pso_results.txt in file 
+        os.chdir(self.pwd)
+        try:
+            with open('./python/PSO_results.txt','r') as file:
+                line = file.read()
+        except:
+            return None
+        line = line[1:-1]
+        line = line.split(",")
+        print(line)
+        p = []
+        for i in line:
+            p.append(float(i))
+        return p
     def arg2Fuzz(self, input: dict) -> str:
         # at random select variable and return key
         # we do not return algo, as it uses its own mutation method.
@@ -712,7 +731,7 @@ class Fuzzer:
             currEpoch += 1
         return
 
-    def fuzz(self,epochs: int = None):
+    def pso_fuzz(self,epochs: int = None):
         if epochs == None:
             epochs = self.defaultEpochs
         currEpoch = 0
@@ -953,55 +972,15 @@ if __name__ == "__main__":
     orig_stdout = sys.stdout
     f = open("LOGGER.txt", "w")
     sys.stdout = f
+
     coreFuzzer = Fuzzer(
         pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True
     )
-    # coreFuzzer.innerLoop(10)
-    # print(coreFuzzer.runner.crashPathHashLs)
-    # # coreFuzzer.decrChar(fuzzed_seed)
-    # # coreFuzzer.insertchar(fuzzed_seed)
-    # # coreFuzzer.flipRandChar(fuzzed_seed)
-    # # coreFuzzer.incrChar(fuzzed_seed)
-    # # coreFuzzer.decrChar(fuzzed_seed)
-    # # coreFuzzer.pollute(fuzzed_seed)
-    # seed = coreFuzzer.runner.hashList[0]
-    # print(seed)
-    # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
-
+    
     coreFuzzer.timeline()
     start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
     coreFuzzer.mainLoop()
     print("exit")
-    # run coverage and log if it is intereing. we also add it to failQ if it is failing
-    # runner.runTest(fuzzed_seed)
-
-    # Fuzzer.createSeedFile(
-    #     "itzkbg2", "itzkbg2", "0123456789123456", "0123456789123456", "CBC",
-    #     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123"
-    # )
-    # output = Fuzzer.runScriptUbuntu(pwd, "./python/seed.txt")
-    # print("end of execution return value: "+str(output))
-    # output = Fuzzer.runScriptUbuntu(pwd, "./aes_combined_seed/aes_combined_cbc.txt")
-    # print("end of execution return value: "+str(output))
-
-    # runner = Runner(pwd)
-    # runner.getAesInputs("./aes_combined_seed")
-    # print(runner.hashList)
-    # print(runner.pathQDict.keys())
-    # print(runner.seedQDict.keys())
-    # print("FailedHashList")
-    # pprint(runner.failedPathHashLs)
-    # print("\nSuccessHashList")
-    # pprint(runner.successPathHashLs)
-    # print("\nSeedQ")
-    # pprint(runner.seedQDict)
-    # print("\nPathFreq")
-    # pprint(runner.pathFrequency)
-
-    # assert(len(runner.successPathHashLs)+len(runner.failedPathHashLs) == len(runner.hashList))
-    # seed = runner.getSeed()
-    # print(seed)
-    # # fuzzing to get fuzzed input dict with fuzzer class
 
     f.close()

@@ -2,6 +2,7 @@
         -:    0:Graph:crypt_test.gcno
         -:    0:Data:crypt_test.gcda
         -:    0:Runs:1
+        -:    0:Programs:1
         -:    1:#include "mbedtls/aes.h"
         -:    2:#include <stdio.h>
         -:    3:#include <stdlib.h>
@@ -26,7 +27,7 @@
        18:   22:    for (i = 0; start <= end; start++, i++)
         -:   23:    {
        17:   24:        output[i] = str[start];
-        -:   25:    }
+       17:   25:    }
         -:   26:
         1:   27:    output[size] = '\0';
         -:   28:
@@ -38,7 +39,7 @@
     #####:   34:    for (int i = 0; i < size; i++)
         -:   35:    {
     #####:   36:        iv2[i] = iv1[i];
-        -:   37:    }
+    #####:   37:    }
     #####:   38:    return 0;
         -:   39:}
         1:   40:int checkResult(unsigned char *decipher, unsigned char *text)
@@ -136,10 +137,10 @@
         1:  132:    mbedtls_aes_free(&aes);
         1:  133:    mbedtls_aes_free(&aes2);
         1:  134:    checkResult(decipher, texttest);
-    #####:  135:    free(ciphered);
-    #####:  136:    free(decipher);
-    #####:  137:    printf("exiting aesEcb()\n\n");
-    #####:  138:    return EXIT_SUCCESS;
+        1:  135:    free(ciphered);
+        1:  136:    free(decipher);
+        1:  137:    printf("exiting aesEcb()\n\n");
+        1:  138:    return EXIT_SUCCESS;
         -:  139:}
         -:  140:
     #####:  141:static int aesCfb128(unsigned char key[], unsigned char iv[], unsigned char text[], int numBytes)
@@ -230,7 +231,7 @@
     #####:  226:        printf("Command argument syntax err.\n");
     #####:  227:        printf("Eg: ./crypt_test ./plain.txt ./options.txt\n");
     #####:  228:        printf("Eg: ./crypt_test ./plain + options.txt\n");
-        -:  229:    }
+    #####:  229:    }
         1:  230:    printf("\nStarted main function\n");
         -:  231:    // declare the variables
         -:  232:    long numBytes;
@@ -303,7 +304,7 @@
     #####:  299:        key2 = strtok((char *)keyArr2, "\n");
     #####:  300:        iv = strtok((char *)ivArr, "\n");
     #####:  301:        iv2 = strtok((char *)ivArr2, "\n");
-        -:  302:    }
+    #####:  302:    }
         1:  303:    else if (argc == 2)
         -:  304:    {
         -:  305:        // only one file contain all values.
@@ -346,7 +347,7 @@
         1:  342:        iv2 = strtok(NULL, "\n");
         -:  343:
         1:  344:        printf("exiting reading of file block\n");
-        -:  345:    }
+        1:  345:    }
         1:  346:    numBytes = (int)strlen(text);
         1:  347:    printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
         1:  348:    printf("Cipher: %s\n", cipher);
@@ -357,25 +358,25 @@
         1:  353:    if (strcmp(cipher, "CBC") == 0)
         -:  354:    {
     #####:  355:        aesCbc(key, key2, iv, iv2, text, numBytes);
-        -:  356:    }
+    #####:  356:    }
         1:  357:    else if (strcmp(cipher, "ECB") == 0)
         -:  358:    {
         1:  359:        aesEcb(key, key2, text, numBytes);
-        -:  360:    }
+        1:  360:    }
     #####:  361:    else if (strcmp(cipher, "CTR") == 0)
         -:  362:    {
     #####:  363:        aesCtr(key, iv, text, numBytes);
-        -:  364:    }
+    #####:  364:    }
     #####:  365:    else if (strcmp(cipher, "CFB128") == 0)
         -:  366:    {
     #####:  367:        aesCfb128(key, iv, text, numBytes);
-        -:  368:    }
+    #####:  368:    }
         -:  369:    else // cipher was not recognised
         -:  370:    {
     #####:  371:        printf("cipher code not recognised");
         -:  372:        // assert(1 == 0);
     #####:  373:        return EXIT_FAILURE;
         -:  374:    }
-    #####:  375:    printf("exit successfully\n");
-    #####:  376:    return EXIT_SUCCESS;
-        -:  377:}
+        1:  375:    printf("exit successfully\n");
+        1:  376:    return EXIT_SUCCESS;
+        1:  377:}
