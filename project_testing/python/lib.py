@@ -121,7 +121,7 @@ class Runner:
             print(e)
             print("unable to change pwd")
             return 2
-        compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls"
+        compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls -w"
         if os.system(compileStr) != 0:
             print("did not compile")
             return 2
@@ -398,7 +398,7 @@ class Fuzzer:
     index = str(random.randint(0,256))
 
     def __init__(
-        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/7,1/7,1/7,1/7,1/7,1/7,1/7]
+        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [0.3344529896108227, 0.2425142106686848, 0.05343304586981843, 0.04254537824939508, 0.08073447644519034, 0.11534661154052535, 0.13097328761556323]
     ) -> None:
         self.selectorProbabilities:list = p
         self.pwd = pwd
@@ -684,6 +684,7 @@ class Fuzzer:
                 self.getSnapshot()
                 self.writeDisk()
                 self.dumpRunner("./python/dumpCrash.pkl")
+                print("Successfully saved run data.")
                 exit(1)
             # count the iteration
             self.iterCount += 1    
@@ -950,13 +951,8 @@ if __name__ == "__main__":
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     
     
-    start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
-    coreFuzzer.mainLoop(5)
-    end = time.time()
-    timetaken = end - start
-    print("time taken: " + str(int(timetaken)) + "s")
-    coreFuzzer.dumpRunner("5epochtestRun.pkl")
+    coreFuzzer.mainLoop()
     print("exit")
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
