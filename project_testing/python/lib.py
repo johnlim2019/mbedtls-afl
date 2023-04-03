@@ -699,7 +699,7 @@ class Fuzzer:
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
         
-        for i in range(epochs):
+        while True:
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
             seedHash = self.runner.getSeed()
@@ -950,7 +950,8 @@ if __name__ == "__main__":
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
     
-    
+    coreFuzzer.timeline()
+    start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
     coreFuzzer.mainLoop()
     print("exit")
