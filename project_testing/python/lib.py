@@ -33,12 +33,19 @@ class Runner:
     seedFile: str = "./python/seed.txt"
     projectTestingDir = None
     coverageFile: str = "crypt_test.c.gcov"
+    sortedDict = {}
 
     ##hide
     crashExitCode: dict = None
 
     def __init__(self, pwd: str):
         self.projectTestingDir = pwd
+
+    def peachMinset(self):
+        seedQCov: dict = self.seedQCov
+        sorted_dict = dict(sorted(seedQCov.items(), key=lambda x: x[1], reverse=True))
+        print(sorted_dict)
+        return sorted_dict
 
     def getAesInputs(self, folder: str) -> bool:
         import glob
@@ -291,10 +298,21 @@ class Runner:
         # print("path is not unique")
         return exitCodeRunTest
 
-    def getSeed(self) -> int:
+    def getSeed(self,seedFreq:dict) -> int:
         # get random seed
-        hashind = random.randint(0, len(self.hashList) - 1)
-        return self.hashList[hashind]
+        # hashind = random.randint(0, len(self.hashList) - 1)
+        print('GET SEED')
+        sorted_dict = self.peachMinset()
+        hash = list(sorted_dict.keys())[0]
+        freq = list(seedFreq.values())
+        ave = sum(freq)/len(freq)
+        currentIndex = 0
+        while seedFreq[hash] > ave:
+            currentIndex += 1
+            hash = list(sorted_dict.keys())[currentIndex]
+        print("SELECTED HASH SEED "+str(hash))
+        print(self.seedQDict)
+        return hash
 
     def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
         # this writes the seed txt file to the results folder
@@ -722,8 +740,9 @@ class Fuzzer:
         while True:
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed()
+            seedHash = self.runner.getSeed(self.seedFreq)
             self.updateSeedFreq(seedHash)  # update the record
+            print(seedHash)
             self.currSeed = self.runner.seedQDict[seedHash]
             energy = self.assignEnergy(seedHash)
             print("energy " + str(energy))
@@ -742,7 +761,7 @@ class Fuzzer:
         for i in range(epochs):
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed()
+            seedHash = self.runner.getSeed(self.seedFreq)
             self.updateSeedFreq(seedHash)  # update the record
             self.currSeed = self.runner.seedQDict[seedHash]
             energy = self.assignEnergy(seedHash)
@@ -970,8 +989,8 @@ if __name__ == "__main__":
     import sys
 
     orig_stdout = sys.stdout
-    f = open("LOGGER.txt", "w")
-    sys.stdout = f
+    # f = open("LOGGER.txt", "w")
+    # sys.stdout = f
 
     coreFuzzer = Fuzzer(
         pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True
@@ -983,4 +1002,4 @@ if __name__ == "__main__":
     coreFuzzer.mainLoop()
     print("exit")
 
-    f.close()
+    # f.close()
