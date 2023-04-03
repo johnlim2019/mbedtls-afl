@@ -44,7 +44,7 @@ class Runner:
         import glob
         print(self.projectTestingDir)
         os.chdir(self.projectTestingDir)
-    
+
         os.chdir("./python/results")
         files = glob.glob("**/*.txt")
         for f in files:
@@ -121,7 +121,7 @@ class Runner:
             print(e)
             print("unable to change pwd")
             return 2
-        compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls"
+        compileStr = "gcc --coverage crypt_test.c -o crypt_test -lmbedcrypto -lmbedtls -w"
         if os.system(compileStr) != 0:
             print("did not compile")
             return 2
@@ -336,8 +336,8 @@ class Fuzzer:
         {}
     )  # number of times a seed has been selected in mainLoop for fuzzing
     currSeed: dict = None  # this is the dict containing all seed arguments
-    
-    
+
+
     mutationLs: list = [
         "insertWhite",
         "algo",
@@ -564,7 +564,7 @@ class Fuzzer:
         print("new dict 2" + str(mutated_dict))
 
         return mutated_dict
-    
+
     mutationFunctions:list = [
         insertWhite,
         delChar,
@@ -574,7 +574,7 @@ class Fuzzer:
         decrChar,
         pollute,
     ]
-    
+
     def initialiseSeedFreq(self) -> bool:
         # before calling fuzzing, we populate the seedFreq which is the number of times the seed is called from CoreFuzzer.mainLoop()
         try:
@@ -665,7 +665,7 @@ class Fuzzer:
         # print("_______________________ new inner loop")
         print("Energy Assigned: " + str(energy))
         for i in range(energy):
-            
+
             self.currSeed = self.fuzzInput()
             # run new fuzzed seed
             try:
@@ -685,10 +685,11 @@ class Fuzzer:
                 self.getSnapshot()
                 self.writeDisk()
                 self.dumpRunner("./python/dumpCrash.pkl")
+                print("Successfully saved run data.")
                 exit(1)
             # count the iteration
-            self.iterCount += 1    
-                    
+            self.iterCount += 1
+
         return
 
     def mainLoop(self, epochs: int = None) -> None:
@@ -698,8 +699,8 @@ class Fuzzer:
         print("Epoches in total: " + str(epochs))
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
-        
-        while(True):
+
+        while True:
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
             seedHash = self.runner.getSeed()
@@ -718,7 +719,7 @@ class Fuzzer:
         print("Epoches in total: " + str(epochs))
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
-        
+
         for i in range(epochs):
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
@@ -736,7 +737,7 @@ class Fuzzer:
         assert self.writeDisk() == True  # comment out later
 
     def getCodeCoverage(self,pathQDict:dict)->float:
-        # return the percentage of code coverage 
+        # return the percentage of code coverage
         #pprint.pprint(pathQDict)
 
         # store the cumulative sum of values for each unique key
@@ -966,15 +967,11 @@ if __name__ == "__main__":
     # seed = coreFuzzer.runner.hashList[0]
     # print(seed)
     # coreFuzzer.runner.writeSeedQ(isFail=False,isCrash=False,ids=seed)
-    
-    
+
+    coreFuzzer.timeline()
     start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
-    coreFuzzer.mainLoop(5)
-    end = time.time()
-    timetaken = end - start
-    print("time taken: " + str(int(timetaken)) + "s")
-    coreFuzzer.dumpRunner("5epochtestRun.pkl")
+    coreFuzzer.mainLoop()
     print("exit")
     # run coverage and log if it is intereing. we also add it to failQ if it is failing
     # runner.runTest(fuzzed_seed)
