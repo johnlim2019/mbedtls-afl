@@ -39,6 +39,9 @@ class PSO:
     def update_position(self,particle, velocity):
     # Move particles by adding velocity
         new_particle = particle + velocity
+        for i in range(len(new_particle)):
+            if new_particle[i] <0:
+                new_particle[i] = 0
         return new_particle
 
 
@@ -111,7 +114,7 @@ if __name__ == "__main__":
     import sys
     sys.stdout = f
     #Number of swarms to initialize
-    population = 40
+    population = 200
     #Dimensions = number of mutator functions
     dimension = 8
     #possible positions
