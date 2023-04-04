@@ -41,12 +41,6 @@ class Runner:
     def __init__(self, pwd: str):
         self.projectTestingDir = pwd
 
-    def peachMinset(self):
-        seedQCov: dict = self.seedQCov
-        sorted_dict = dict(sorted(seedQCov.items(), key=lambda x: x[1], reverse=True))
-        print(sorted_dict)
-        return sorted_dict
-
     def getAesInputs(self, folder: str) -> bool:
         import glob
         print(self.projectTestingDir)
@@ -283,36 +277,57 @@ class Runner:
             self.mostRecentHash = ids
             self.seedQCov[ids] = self.currPathCov
             # print("interesting path found")
-            print(self.seedQCov)
             if isfail:
                 print("path is a failing path")
                 self.failedPathHashLs.append(ids)
                 exitCodeRunTest = 1
             elif isCrash:
+                self.seedQCov[ids] = 0
                 self.crashPathHashLs.append(ids)
                 exitCodeRunTest = 1
             else:
                 print("path is a successful path")
                 exitCodeRunTest = 0
+            print(self.seedQCov)
             self.writeDiskSeedQ(isfail, isCrash, ids)
         # print("path is not unique")
         return exitCodeRunTest
 
-    def getSeed(self,seedFreq:dict) -> int:
-        # get random seed
-        # hashind = random.randint(0, len(self.hashList) - 1)
+    def peachMinset(self,cost=None)->dict:
+        # return the sorted list based on value descendin
+        if cost == None:
+            seedQCov: dict = self.seedQCov
+        else:
+            seedQCov = cost
+        sorted_dict = dict(sorted(seedQCov.items(), key=lambda x: x[1], reverse=True))
+        return sorted_dict
+
+    def getSeed(self,seedFreq:dict,timelineYCov:list) -> int:
+        underflow_cost = 0.00000001
+        # get next seed based on the best coverage, and the inverse of its seed frequency selection and of its energy (path frequency)
+        print("get path frequency")
+        pprint(self.pathFrequency)
         print('GET SEED')
-        sorted_dict = self.peachMinset()
-        hash = list(sorted_dict.keys())[0]
-        freq = list(seedFreq.values())
-        ave = sum(freq)/len(freq)
-        currentIndex = 0
-        while seedFreq[hash] > ave:
-            currentIndex += 1
-            hash = list(sorted_dict.keys())[currentIndex]
-        print("SELECTED HASH SEED "+str(hash))
-        print(self.seedQDict)
-        return hash
+        cov = self.seedQCov
+        seed = seedFreq
+        path = self.pathFrequency
+        hashes = list(cov.keys())
+        cost = {}
+        for hash in hashes:
+            hashCov = cov[hash]/timelineYCov[-1]
+            seedFreq = seed[hash]/sum(seed.values()) if seed[hash] != 0 else underflow_cost
+            pathFreq = path[hash]/sum(path.values()) if path[hash] != 0 else underflow_cost
+            # print(hashCov)
+            # print(seedFreq)
+            # print(pathFreq)
+            costHash = hashCov * np.log(pathFreq) * np.log(seedFreq)
+            cost[hash] = costHash
+        sorted_dict = self.peachMinset(cost)
+        selectedHash = list(sorted_dict.keys())[0]
+        print("sorted cost")
+        pprint(sorted_dict)
+        print("hash: "+selectedHash)
+        return selectedHash
 
     def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
         # this writes the seed txt file to the results folder
@@ -376,7 +391,6 @@ class Fuzzer:
     timelineX: list = []
     timelineYCodeCoverage = []
     timelineMutatorSel = {
-        "replaceChar": 0,
         "insertWhite": 0,
         "algo": 0,
         "delChar": 0,
@@ -447,7 +461,7 @@ class Fuzzer:
             return None
         line = line[1:-1]
         line = line.split(",")
-        print(line)
+        # print(line)
         p = []
         for i in line:
             p.append(float(i))
@@ -740,7 +754,7 @@ class Fuzzer:
         while True:
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed(self.seedFreq)
+            seedHash = self.runner.getSeed(self.seedFreq,self.timelineYCodeCoverage)
             self.updateSeedFreq(seedHash)  # update the record
             print(seedHash)
             self.currSeed = self.runner.seedQDict[seedHash]
@@ -761,7 +775,7 @@ class Fuzzer:
         for i in range(epochs):
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed(self.seedFreq)
+            seedHash = self.runner.getSeed(self.seedFreq,self.timelineYCodeCoverage)
             self.updateSeedFreq(seedHash)  # update the record
             self.currSeed = self.runner.seedQDict[seedHash]
             energy = self.assignEnergy(seedHash)
@@ -989,8 +1003,8 @@ if __name__ == "__main__":
     import sys
 
     orig_stdout = sys.stdout
-    # f = open("LOGGER.txt", "w")
-    # sys.stdout = f
+    f = open("LOGGER.txt", "w")
+    sys.stdout = f
 
     coreFuzzer = Fuzzer(
         pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True
@@ -1002,4 +1016,4 @@ if __name__ == "__main__":
     coreFuzzer.mainLoop()
     print("exit")
 
-    # f.close()
+    f.close()
