@@ -787,6 +787,7 @@ class Fuzzer:
     def timeline(self):
         assert self.getSnapshot() == True
         assert self.writeDisk() == True  # comment out later
+        assert self.dumpRunner("./python/dumpCrash.pkl") == True
 
     def getCodeCoverage(self,pathQDict:dict)->float:
         # return the percentage of code coverage
