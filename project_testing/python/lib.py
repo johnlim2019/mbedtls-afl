@@ -10,6 +10,8 @@ import pickle
 import string
 import mutatemethods as MnM
 import threading
+import pso
+
 
 def getRandomString(length):
     # choose from all lowercase letter
@@ -20,7 +22,7 @@ def getRandomString(length):
 
 
 class Runner:
-    mostRecentHash: str = None
+    mostRecentHash: str = None  # this is used to pass to the Fuzzer object to add new interesting hash to the mapping that count number of times a seed is chosen
     hashList = []
     currPathCov: float = 0.0
     seedQCov = {}
@@ -33,7 +35,12 @@ class Runner:
     seedFile: str = "./python/seed.txt"
     projectTestingDir = None
     coverageFile: str = "crypt_test.c.gcov"
-    sortedDict = {}
+
+    # for getSeed optimisation
+    currentSeedHash: str = (
+        None  # this is the hash of the seed last chosen from seedQ it updates each time getSeed() is called
+    )
+    seed2Interesting = {}
 
     ##hide
     crashExitCode: dict = None
@@ -43,6 +50,7 @@ class Runner:
 
     def getAesInputs(self, folder: str) -> bool:
         import glob
+
         print(self.projectTestingDir)
         os.chdir(self.projectTestingDir)
 
@@ -54,7 +62,7 @@ class Runner:
         fileList = os.listdir(folder)
         os.chdir(folder)
         # print(fileList)
-        # populate the
+        # populate the input
         for filename in fileList:
             os.chdir(self.projectTestingDir)
             os.chdir(folder)
@@ -79,15 +87,13 @@ class Runner:
                     "algo": algo,
                     "plain": plain,
                 }
-                self.runTest(inputDict)
+                self.runTest(inputDict, True)
             # except Exception as e:
             #     print(e)
             #     return False
         return True
 
-    def createSeedFile(
-        self, key: str, key2: str, IV: str, IV2: str, algo: str, plain: str
-    ) -> str:
+    def createSeedFile(self, key: str, key2: str, IV: str, IV2: str, algo: str, plain: str) -> str:
         os.chdir(self.projectTestingDir)
         fileStr = ""
         fileStr += plain + "\nendplain\n"
@@ -199,9 +205,7 @@ class Runner:
         keys2 = list(lines_dict2.keys())
         if keys1 != keys2:
             return True
-        targetMatches = len(
-            keys1
-        )  # we want all lines to match if it is not interesting
+        targetMatches = len(keys1)  # we want all lines to match if it is not interesting
         numMatches = 0
         i = 0
 
@@ -230,15 +234,17 @@ class Runner:
                 return False
         return True
 
-    def runTest(self, inputDict) -> int:
+    def runTest(self, inputDict, isSetup: bool = False) -> int:
         # exit codes
         # -1 is not interesting
         # 0 is intersting not fail
         # 1 is interesting and fail or crash
         # 2 compiling error
-        exitCodeRunTest: int = (
-            -1
-        )  # this variable is what we want to return at the end of the method
+
+        # arguments
+        # inputDict this the fuzzed input
+        # isSetup is flag, True means we are using prepared seedfiles from folder project_seed_q
+        exitCodeRunTest: int = -1  # this variable is what we want to return at the end of the method
         exitCode: int = self.getPathCovFile(inputDict)
         isfail = False
         isCrash = False
@@ -268,14 +274,24 @@ class Runner:
             path: dict = self.parseFile(covFilePath)
         # print(path)
         interesting: bool = self.isInterestingOuter(path)
+        ids = str(uuid.uuid4())
+        if isSetup == True:
+            # we have nothing in the seed Q at setup
+            # we want to add the seed to the hashlist and to the seed2Interesting mapping
+            # the first seed always is interesting.
+            self.currentSeedHash = ids
+            self.seed2Interesting[self.currentSeedHash] = 0
         if interesting:
-            ids = str(uuid.uuid4())
             self.seedQDict[ids] = inputDict
             self.pathQDict[ids] = path
             self.hashList.append(ids)
             self.pathFrequency[ids] = 1
             self.mostRecentHash = ids
             self.seedQCov[ids] = self.currPathCov
+            # we also want to add it the seed2Interesting.
+            self.seed2Interesting[self.currentSeedHash] += 1
+            # we also found a new seed so we add it to the seed2Interesting
+            self.seed2Interesting[ids] = 1
             # print("interesting path found")
             if isfail:
                 print("path is a failing path")
@@ -293,7 +309,7 @@ class Runner:
         # print("path is not unique")
         return exitCodeRunTest
 
-    def peachMinset(self,cost=None)->dict:
+    def peachMinset(self, cost=None) -> dict:
         # return the sorted list based on value descendin
         if cost == None:
             seedQCov: dict = self.seedQCov
@@ -302,21 +318,21 @@ class Runner:
         sorted_dict = dict(sorted(seedQCov.items(), key=lambda x: x[1], reverse=True))
         return sorted_dict
 
-    def getSeed(self,seedFreq:dict,timelineYCov:list) -> int:
+    def getSeedOld(self, seedFreq: dict, timelineYCov: list) -> int:
         underflow_cost = 0.00000001
         # get next seed based on the best coverage, and the inverse of its seed frequency selection and of its energy (path frequency)
         print("get path frequency")
         pprint(self.pathFrequency)
-        print('GET SEED')
+        print("GET SEED")
         cov = self.seedQCov
         seed = seedFreq
         path = self.pathFrequency
         hashes = list(cov.keys())
         cost = {}
         for hash in hashes:
-            hashCov = cov[hash]/timelineYCov[-1]
-            seedFreq = seed[hash]/sum(seed.values()) if seed[hash] != 0 else underflow_cost
-            pathFreq = path[hash]/sum(path.values()) if path[hash] != 0 else underflow_cost
+            hashCov = cov[hash] / timelineYCov[-1]
+            seedFreq = seed[hash] / sum(seed.values()) if seed[hash] != 0 else underflow_cost
+            pathFreq = path[hash] / sum(path.values()) if path[hash] != 0 else underflow_cost
             # print(hashCov)
             # print(seedFreq)
             # print(pathFreq)
@@ -326,7 +342,53 @@ class Runner:
         selectedHash = list(sorted_dict.keys())[0]
         print("sorted cost")
         pprint(sorted_dict)
-        print("hash: "+selectedHash)
+        print("hash: " + selectedHash)
+        return selectedHash
+
+    def shannon_diversity(self,species):
+        total = sum(species)
+        output = 0
+        for value in species:
+            p = value / total
+            if p != 0:
+                output += np.log(p) * p
+        return -output
+
+    def getSeed(self, seedFreqDict: dict, timelineYCov: list) -> int:
+        # get next seed based on the index of the number
+        print("path freq")
+        pprint(self.pathFrequency)
+        print("seed freq")
+        pprint(seedFreqDict)
+        print("seed2interesting")
+        pprint(self.seed2Interesting)
+        seed2interestingProb = []
+        interesting = self.seed2Interesting
+        for hash in self.hashList:
+            seed2interestingProb.append(interesting[hash] / len(self.hashList))
+        print("interesting prob")
+        print(seed2interestingProb)
+        currDiversity = self.shannon_diversity(seed2interestingProb)
+        print("curr diversity score " + str(currDiversity))
+        possible_hash = {}
+        for index, hash in enumerate(self.hashList):
+            seed2interestingProb[index] = (interesting[hash] + 1) / (len(self.hashList) + 1)
+            newDiversity = self.shannon_diversity(seed2interestingProb)
+            if newDiversity >= currDiversity:
+                diff = newDiversity - currDiversity
+                possible_hash[hash] = diff
+        maxIncrease = 0
+        possible_choose = []
+        for index, hash in enumerate(list(possible_hash.keys())):
+            if possible_hash[hash] >= maxIncrease:
+                maxIncrease = possible_hash[hash]
+                possible_choose.append(hash)
+        print("max increase score " + str(maxIncrease))
+        selectedHash = np.random.choice(possible_choose)
+        print("available choices " + str(possible_choose))
+        # we have chosen a new seed.
+        self.currentSeedHash = selectedHash
+        print("selected hash " + selectedHash)
         return selectedHash
 
     def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
@@ -365,11 +427,8 @@ class Fuzzer:
     alpha_max = 2000
     pwd: str = None
     runner: Runner
-    seedFreq: dict = (
-        {}
-    )  # number of times a seed has been selected in mainLoop for fuzzing
+    seedFreq: dict = {}  # number of times a seed has been selected in mainLoop for fuzzing
     currSeed: dict = None  # this is the dict containing all seed arguments
-
 
     mutationLs: list = [
         "insertWhite",
@@ -427,18 +486,22 @@ class Fuzzer:
         "algo": "CBC",
         "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
     }
-    index = str(random.randint(0,256))
+    index = str(random.randint(0, 256))
 
     def __init__(
-
-        self, pwd: str, seedFolder: str, defaultEpochs: int = 20, runGetAesInput=True,p = [1/8, 1/8, 1/8, 1/8, 1/8, 1/8,1/8,1/8]
+        self,
+        pwd: str,
+        seedFolder: str,
+        defaultEpochs: int = 20,
+        runGetAesInput=True,
+        p=[1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8],
     ) -> None:
         self.pwd = pwd
-        self.selectorProbabilities:list = self.read_pso()
+        self.selectorProbabilities: list = self.read_pso()
         if self.selectorProbabilities == None:
-            self.selectorProbabilities:list = p
+            self.selectorProbabilities: list = p
         print()
-        print("mutator p-distribution: "+str(self.selectorProbabilities))
+        print("mutator p-distribution: " + str(self.selectorProbabilities))
         print()
         self.defaultEpochs = defaultEpochs
         if runGetAesInput == True:
@@ -451,11 +514,12 @@ class Fuzzer:
                 "runnr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
                 "any losses in results folder may be retrieved from runner dump"
             )
-    def read_pso(self)->list:
-        # look for pso_results.txt in file 
+
+    def read_pso(self) -> list:
+        # look for pso_results.txt in file
         os.chdir(self.pwd)
         try:
-            with open('./python/PSO_results.txt','r') as file:
+            with open("./python/PSO_results.txt", "r") as file:
                 line = file.read()
         except:
             return None
@@ -466,6 +530,7 @@ class Fuzzer:
         for i in line:
             p.append(float(i))
         return p
+
     def arg2Fuzz(self, input: dict) -> str:
         # at random select variable and return key
         # we do not return algo, as it uses its own mutation method.
@@ -616,7 +681,7 @@ class Fuzzer:
 
         return mutated_dict
 
-    mutationFunctions:list = [
+    mutationFunctions: list = [
         insertWhite,
         delChar,
         insertChar,
@@ -667,15 +732,15 @@ class Fuzzer:
             energy = int(self.alpha_i / numTimesPathExecute) + 1
         energy = min(energy, self.alpha_max)
         # print(energy)
-        return energy
+        return 5
 
     def getMutator(self) -> int:
-        return np.random.choice([0,1,2,3,4,5,6,7], p=self.selectorProbabilities)
+        return np.random.choice([0, 1, 2, 3, 4, 5, 6, 7], p=self.selectorProbabilities)
 
     def fuzzInput(self) -> dict:
         # randomly choose mutation
         ind = self.getMutator()
-        mutator= self.mutationLs[ind]
+        mutator = self.mutationLs[ind]
         self.currMutator = mutator
         print(mutator)
         # return fuzzed seed
@@ -716,7 +781,6 @@ class Fuzzer:
         # print("_______________________ new inner loop")
         print("Energy Assigned: " + str(energy))
         for i in range(energy):
-
             self.currSeed = self.fuzzInput()
             # run new fuzzed seed
             try:
@@ -753,8 +817,9 @@ class Fuzzer:
 
         while True:
             print("\n------------------ epoch " + str(currEpoch))
+            print("seed frequency")
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed(self.seedFreq,self.timelineYCodeCoverage)
+            seedHash = self.runner.getSeed(self.seedFreq, self.timelineYCodeCoverage)
             self.updateSeedFreq(seedHash)  # update the record
             print(seedHash)
             self.currSeed = self.runner.seedQDict[seedHash]
@@ -764,7 +829,7 @@ class Fuzzer:
             currEpoch += 1
         return
 
-    def pso_fuzz(self,epochs: int = None):
+    def pso_fuzz(self, epochs: int = None):
         if epochs == None:
             epochs = self.defaultEpochs
         currEpoch = 0
@@ -775,7 +840,7 @@ class Fuzzer:
         for i in range(epochs):
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
-            seedHash = self.runner.getSeed(self.seedFreq,self.timelineYCodeCoverage)
+            seedHash = self.runner.getSeed(self.seedFreq, self.timelineYCodeCoverage)
             self.updateSeedFreq(seedHash)  # update the record
             self.currSeed = self.runner.seedQDict[seedHash]
             energy = self.assignEnergy(seedHash)
@@ -789,9 +854,9 @@ class Fuzzer:
         assert self.writeDisk() == True  # comment out later
         assert self.dumpRunner("./python/dumpCrash.pkl") == True
 
-    def getCodeCoverage(self,pathQDict:dict)->float:
+    def getCodeCoverage(self, pathQDict: dict) -> float:
         # return the percentage of code coverage
-        #pprint.pprint(pathQDict)
+        # pprint.pprint(pathQDict)
 
         # store the cumulative sum of values for each unique key
         cumul_dict = {}
@@ -806,34 +871,29 @@ class Fuzzer:
                     cumul_dict[key] = value
 
         # pprint.pprint(cumul_dict)
-        count_execute = 0;
+        count_execute = 0
         for val_dict in cumul_dict.values():
             if val_dict > 0:
-                count_execute += 1;
+                count_execute += 1
         # for key, val_dict in pathQDict.items():
         #     if '81' in val_dict:
         #         print(f"{key} key 81 value is {val_dict['81']}")
 
-
-        return round(count_execute/len(cumul_dict.items()),5)*100
+        return round(count_execute / len(cumul_dict.items()), 5) * 100
 
     def getSnapshot(self) -> bool:
-        try:
-            successPaths = len(self.runner.successPathHashLs)
-            crashPaths = len(self.runner.crashPathHashLs)
-            failurePaths = len(self.runner.failedPathHashLs)
-            totalPathsQ = len(self.runner.pathQDict.keys())
-            codeCoverage = self.getCodeCoverage(self.runner.pathQDict)
-            self.timelineYSuccess.append(successPaths)
-            self.timelineYFails.append(failurePaths)
-            self.timelineYPaths.append(totalPathsQ)
-            self.timelineYIterations.append(self.iterCount)
-            self.timelineYCrashes.append(crashPaths)
-            self.timelineX.append(time.time())
-            self.timelineYCodeCoverage.append(codeCoverage)
-        except Exception as e:
-            print(e)
-            return False
+        successPaths = len(self.runner.successPathHashLs)
+        crashPaths = len(self.runner.crashPathHashLs)
+        failurePaths = len(self.runner.failedPathHashLs)
+        totalPathsQ = len(self.runner.pathQDict.keys())
+        codeCoverage = self.getCodeCoverage(self.runner.pathQDict)
+        self.timelineYSuccess.append(successPaths)
+        self.timelineYFails.append(failurePaths)
+        self.timelineYPaths.append(totalPathsQ)
+        self.timelineYIterations.append(self.iterCount)
+        self.timelineYCrashes.append(crashPaths)
+        self.timelineX.append(time.time())
+        self.timelineYCodeCoverage.append(codeCoverage)
         return True
 
     def writeDisk(self) -> bool:
@@ -846,19 +906,12 @@ class Fuzzer:
                     self.timelineYPaths,
                     self.timelineYCrashes,
                     self.timelineYIterations,
-                    self.timelineYCodeCoverage
+                    self.timelineYCodeCoverage,
                 ]
             )
             df = df.transpose()
-            df.columns = [
-                "unix_time",
-                "failures",
-                "unique_paths",
-                "crashes",
-                "iterations",
-                "code_coverage"
-            ]
-            df.to_csv("python/plot_data/data_list_"+self.index+".csv")
+            df.columns = ["unix_time", "failures", "unique_paths", "crashes", "iterations", "code_coverage"]
+            df.to_csv("python/plot_data/data_list_" + self.index + ".csv")
             df2 = pd.DataFrame(
                 list(self.timelineMutatorSel.values()),
                 index=list(self.timelineMutatorSel.keys()),
@@ -935,6 +988,7 @@ def makeResultsDir(pwd: str) -> bool:
         return False
     return True
 
+
 def getSnapshotCsv(dumpfile: str):
     os.chdir(pwd)
     with open(dumpfile, "rb") as f:
@@ -969,9 +1023,7 @@ def getSnapshotCsv(dumpfile: str):
             isCrash.append(True)
         else:
             isCrash.append(False)
-    df = pd.DataFrame(
-        [seedQLs, pathFrequencyLs, seedCovLs, seedFreqLs, isFail, isCrash]
-    )
+    df = pd.DataFrame([seedQLs, pathFrequencyLs, seedCovLs, seedFreqLs, isFail, isCrash])
     df = df.transpose()
     print(df.shape)
     df.columns = [
@@ -981,12 +1033,13 @@ def getSnapshotCsv(dumpfile: str):
         "Seed Frequency",
         "Fail Path",
         "Crash Path",
-        "Total Code Coverage"
+        "Total Code Coverage",
     ]
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
 
-def every(delay,task):
+
+def every(delay, task):
     next_time = time.time() + delay
     while True:
         time.sleep(max(0, next_time - time.time()))
@@ -996,6 +1049,7 @@ def every(delay,task):
             print(e)
         # skip tasks if we are behind schedule:
         next_time += (time.time() - next_time) // delay * delay + delay
+
 
 if __name__ == "__main__":
     pwd = os.path.dirname(os.path.abspath("LICENSE")) + "/project_testing"
@@ -1007,10 +1061,8 @@ if __name__ == "__main__":
     f = open("LOGGER.txt", "w")
     sys.stdout = f
 
-    coreFuzzer = Fuzzer(
-        pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True
-    )
-    
+    coreFuzzer = Fuzzer(pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True)
+
     coreFuzzer.timeline()
     start = time.time()
     threading.Thread(target=lambda: every(5, coreFuzzer.timeline)).start()
