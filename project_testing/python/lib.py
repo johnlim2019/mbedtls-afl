@@ -261,7 +261,7 @@ class Runner:
             print("gcc compiling issue or gcov execution issue")
             self.getSnapshot()
             self.writeDisk()
-            self.dumpRunner("./python/dumpCrash.pkl")
+            self.dumpRunner()
             return exit()
         elif exitCode == -1:
             print("crash")
@@ -457,7 +457,7 @@ class Runner:
 
 
 class Fuzzer:
-    alpha_i = 400
+    alpha_i = 15
     alpha_max = 2000
     pwd: str = None
     runner: Runner
@@ -653,6 +653,9 @@ class Fuzzer:
         newValue = random.choice(algoOptions)
         if newValue == "fail":
             newValue = getRandomString(random.randint(0, 8))
+        else:
+            newKey = getRandomString(random.randint(0,32))
+            output["key"] = output['key2'] = newKey
         output["algo"] = newValue
         print("old dict 2" + str(input))
         print("new dict 2" + str(output))
@@ -833,7 +836,7 @@ class Fuzzer:
                 print(e)
                 self.getSnapshot()
                 self.writeDisk()
-                self.dumpRunner("./python/dumpCrash.pkl")
+                self.dumpRunner()
                 print("Successfully saved run data.")
                 exit(1)
             # count the iteration
@@ -886,7 +889,7 @@ class Fuzzer:
     def timeline(self):
         assert self.getSnapshot() == True
         assert self.writeDisk() == True  # comment out later
-        assert self.dumpRunner("./python/dumpCrash.pkl") == True
+        assert self.dumpRunner() == True
 
     def getCodeCoverage(self, pathQDict: dict) -> float:
         # return the percentage of code coverage
@@ -944,15 +947,15 @@ class Fuzzer:
         )
         df = df.transpose()
         df.columns = ["unix_time", "failures", "unique_paths", "crashes", "iterations", "code_coverage"]
-        df.to_csv("python/plot_data/data_list_" + self.index + ".csv")
+        df.to_csv(f"python/plot_data/{self.index}/data_list_{self.index}.csv")
         df2 = pd.DataFrame(
             list(self.timelineMutatorSel.values()),
             index=list(self.timelineMutatorSel.keys()),
         )
-        df2.to_csv("python/plot_data/mutation_sel_ "+self.index+".csv")
+        df2.to_csv(f"python/plot_data/{self.index}/mutation_sel_{self.index}.csv")
         return True
 
-    def dumpRunner(self, filename: str) -> bool:
+    def dumpRunner(self) -> bool:
         # dump all th important attributes of runner obj and also seedFreq from fuzzer obj
         out: list = [
             self.runner.hashList,
@@ -967,7 +970,7 @@ class Fuzzer:
         ]
         os.chdir(self.pwd)
         try:
-            with open("python/plot_data/dumpCrash_"+self.index+".pkl", "wb") as file:
+            with open(f"python/plot_data/{self.index}/dumpCrash_{self.index}.pkl", "wb") as file:
                 pickle.dump(out, file)
         except Exception as e:
             print(e)
@@ -1003,6 +1006,7 @@ def makeResultsDir(pwd: str) -> bool:
     fail = os.path.join(pwd, "python/results/failQ")
     crash = os.path.join(pwd, "python/results/crashQ")
     plot_data = os.path.join(pwd, "python/plot_data")
+    subdir = os.path.join(pwd, f"python/plot_data/{dt_string}")
 
     try:
         if os.path.exists(results) != True:
@@ -1015,7 +1019,9 @@ def makeResultsDir(pwd: str) -> bool:
             os.mkdir(crash)
         if os.path.exists(plot_data) != True:
             os.mkdir(plot_data)
+        os.mkdir(subdir)
     except:
+        exit()
         return False
     return True
 
@@ -1089,7 +1095,7 @@ if __name__ == "__main__":
     import sys
 
     orig_stdout = sys.stdout
-    f = open("LOGGER.txt", "w")
+    f = open(f"./project_testing/python/plot_data/{dt_string}/LOGGER_{dt_string}.txt", "w")
     sys.stdout = f
 
     coreFuzzer = Fuzzer(pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True)
