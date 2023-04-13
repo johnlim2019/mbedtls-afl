@@ -4,14 +4,23 @@ from pprint import pprint
 import random
 import uuid
 import time
+import datetime
 import pandas as pd
 import numpy as np
 import pickle
 import string
 import mutatemethods as MnM
 import threading
-import pso
 
+from datetime import datetime
+
+# datetime object containing current date and time
+now = datetime.now()
+ 
+print("now =", now)
+
+# dd/mm/YY H:M:S
+dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 
 def getRandomString(length):
     # choose from all lowercase letter
@@ -291,7 +300,9 @@ class Runner:
             # we also want to add it the seed2Interesting.
             self.seed2Interesting[self.currentSeedHash] += 1
             # we also found a new seed so we add it to the seed2Interesting
-            self.seed2Interesting[ids] = 1
+            # if it is a new seed, if it is just the previous seed we dont want to overwrite it.
+            if (ids != self.currentSeedHash):
+                self.seed2Interesting[ids] = 0
             # print("interesting path found")
             if isfail:
                 print("path is a failing path")
@@ -345,7 +356,7 @@ class Runner:
         print("hash: " + selectedHash)
         return selectedHash
 
-    def shannon_diversity(self,species):
+    def shannon_diversity(self, species):
         total = sum(species)
         output = 0
         for value in species:
@@ -391,6 +402,29 @@ class Runner:
         print("selected hash " + selectedHash)
         return selectedHash
 
+    def getSeedPonly(self, seedFreqDict: dict, timelineYCov: list) -> int:
+        # get next seed based on the index of the number
+        print("path freq")
+        pprint(self.pathFrequency)
+        print("seed freq")
+        pprint(seedFreqDict)
+        print("seed2interesting")
+        pprint(self.seed2Interesting)
+        seed2interestingProb = []
+        interesting = self.seed2Interesting
+        for hash in self.hashList:
+            seed2interestingProb.append(interesting[hash] / len(self.hashList))
+        print("interesting prob")
+        print(seed2interestingProb)
+        # normalise
+        prob = []
+        for v in seed2interestingProb:
+            prob.append(v / sum(seed2interestingProb))
+        selectedHash = np.random.choice(self.hashList, p=prob)
+        self.currentSeedHash = selectedHash
+        print("selected hash " + selectedHash)
+        return selectedHash
+
     def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
         # this writes the seed txt file to the results folder
         import glob
@@ -423,7 +457,7 @@ class Runner:
 
 
 class Fuzzer:
-    alpha_i = 2
+    alpha_i = 400
     alpha_max = 2000
     pwd: str = None
     runner: Runner
@@ -486,7 +520,7 @@ class Fuzzer:
         "algo": "CBC",
         "plain": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=~[];',./{}|:?<>\"123",
     }
-    index = str(random.randint(0, 256))
+    index = dt_string
 
     def __init__(
         self,
@@ -732,7 +766,7 @@ class Fuzzer:
             energy = int(self.alpha_i / numTimesPathExecute) + 1
         energy = min(energy, self.alpha_max)
         # print(energy)
-        return 5
+        return energy
 
     def getMutator(self) -> int:
         return np.random.choice([0, 1, 2, 3, 4, 5, 6, 7], p=self.selectorProbabilities)
@@ -898,29 +932,24 @@ class Fuzzer:
 
     def writeDisk(self) -> bool:
         os.chdir(self.runner.projectTestingDir)
-        try:
-            df = pd.DataFrame(
-                [
-                    self.timelineX,
-                    self.timelineYFails,
-                    self.timelineYPaths,
-                    self.timelineYCrashes,
-                    self.timelineYIterations,
-                    self.timelineYCodeCoverage,
-                ]
-            )
-            df = df.transpose()
-            df.columns = ["unix_time", "failures", "unique_paths", "crashes", "iterations", "code_coverage"]
-            df.to_csv("python/plot_data/data_list_" + self.index + ".csv")
-            df2 = pd.DataFrame(
-                list(self.timelineMutatorSel.values()),
-                index=list(self.timelineMutatorSel.keys()),
-            )
-            # print(df2)
-            df2.to_csv("python/mutation_sel.csv")
-        except Exception as e:
-            print(e)
-            return False
+        df = pd.DataFrame(
+            [
+                self.timelineX,
+                self.timelineYFails,
+                self.timelineYPaths,
+                self.timelineYCrashes,
+                self.timelineYIterations,
+                self.timelineYCodeCoverage,
+            ]
+        )
+        df = df.transpose()
+        df.columns = ["unix_time", "failures", "unique_paths", "crashes", "iterations", "code_coverage"]
+        df.to_csv("python/plot_data/data_list_" + self.index + ".csv")
+        df2 = pd.DataFrame(
+            list(self.timelineMutatorSel.values()),
+            index=list(self.timelineMutatorSel.keys()),
+        )
+        df2.to_csv("python/plot_data/mutation_sel_ "+self.index+".csv")
         return True
 
     def dumpRunner(self, filename: str) -> bool:
@@ -934,10 +963,11 @@ class Fuzzer:
             self.runner.crashPathHashLs,
             self.runner.seedQCov,
             self.seedFreq,
+            self.runner.seed2Interesting
         ]
         os.chdir(self.pwd)
         try:
-            with open(filename, "wb") as file:
+            with open("python/plot_data/dumpCrash_"+self.index+".pkl", "wb") as file:
                 pickle.dump(out, file)
         except Exception as e:
             print(e)
@@ -959,6 +989,7 @@ class Fuzzer:
                 self.runner.crashPathHashLs = inputs[5]
                 self.runner.seedQCov = inputs[6]
                 self.seedFreq = inputs[7]
+                self.runner.seed2Interesting = inputs[8]
                 # print(self.runner.pathFrequency)
         except Exception as e:
             print(e)

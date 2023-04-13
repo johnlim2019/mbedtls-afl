@@ -16,6 +16,7 @@ def getSnapshotCsv(dumpfile:str):
     crashPathHashLs: list = inputs[5]
     seedQCov: dict = inputs[6]
     seedFreq: dict = inputs[7]
+    interestingFreq = inputs[8]
     # pprint.pprint(pathQDict)
     seedQLs = []
     pathQLs = []
@@ -24,12 +25,14 @@ def getSnapshotCsv(dumpfile:str):
     seedFreqLs = []
     isFail = [] 
     isCrash = []
+    seedInteresting = []
     for i in hashList:
         seedQLs.append(seedQDict[i])
         pathQLs.append(pathQDict[i])
         pathFrequencyLs.append(pathFrequency[i])
         seedCovLs.append(seedQCov[i])
         seedFreqLs.append(seedFreq[i])
+        seedInteresting.append(interestingFreq[i])
         if i in failedPathHashLs:
             isFail.append(True)
         else: 
@@ -39,7 +42,7 @@ def getSnapshotCsv(dumpfile:str):
         else:
             isCrash.append(False)
     df = pd.DataFrame([
-        seedQLs,pathFrequencyLs,seedCovLs,seedFreqLs,isFail,isCrash
+        seedQLs,pathFrequencyLs,seedCovLs,seedFreqLs,isFail,isCrash,seedInteresting
     ])
     df = df.transpose()
     print(hashList)
@@ -50,7 +53,8 @@ def getSnapshotCsv(dumpfile:str):
         "Path Code Coverage",
         "Seed Frequency",
         "Fail Path",
-        "Crash Path"
+        "Crash Path",
+        "Seed Interesting"
     ]
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
