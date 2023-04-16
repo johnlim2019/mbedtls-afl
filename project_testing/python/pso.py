@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import math
-from lib import Fuzzer
+from old import Fuzzer
 class PSO:
     #Each particle (or swarm) represents a list of probabilities for each function to be chosen
     def __init__(self, population, dimension, position_min, position_max, generation, fitness_function):
@@ -53,7 +53,12 @@ class PSO:
         # Particle's best position
         pbest_position = particles
         # Fitness
-        pbest_fitness = [self.fitness_function(p) for p in particles]
+        pbest_fitness = []
+        c = 0
+        for p in particles:
+            print("new particle "+str(c))
+            pbest_fitness.append(self.fitness_function(p))
+            c += 1
         # Index of the best particle
         gbest_index = np.argmax(pbest_fitness)
         # Global best particle position
@@ -66,6 +71,7 @@ class PSO:
         # Stop if the average fitness value reacpyted a predefined success criterion
             print("Current Generation: " + str(t))
             for n in range(self.population):
+                print("Best Selection is " + str(normalize(pso.gbest_position)))
                 # Update the velocity of each particle
 
                 velocity[n] = self.update_velocity(particles[n], velocity[n], pbest_position[n], self.gbest_position)
@@ -101,7 +107,7 @@ def shannon_diversity(species : dict):
 def diversity_cost(particle):
     global pwd
     fuzzer = Fuzzer(
-        pwd, seedFolder="./project_seed_q", defaultEpochs=1, runGetAesInput=True, p=normalize(particle)
+        pwd, seedFolder="./project_seed_q", runGetAesInput=True, p=normalize(particle)
     )
     fuzzer.pso_fuzz(1)
     pathDict = fuzzer.interestingMutatorSel
@@ -121,7 +127,7 @@ if __name__ == "__main__":
     position_min = 1
     position_max = 100
     #iterations
-    generation = 5
+    generation = 100
     #cost function taking in a swarm as input
     cost_function = diversity_cost
     
