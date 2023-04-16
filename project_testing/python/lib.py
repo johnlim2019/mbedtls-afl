@@ -330,31 +330,10 @@ class Runner:
         return sorted_dict
 
     def getSeedOld(self, seedFreq: dict, timelineYCov: list) -> int:
-        underflow_cost = 0.00000001
-        # get next seed based on the best coverage, and the inverse of its seed frequency selection and of its energy (path frequency)
-        print("get path frequency")
-        pprint(self.pathFrequency)
-        print("GET SEED")
-        cov = self.seedQCov
-        seed = seedFreq
-        path = self.pathFrequency
-        hashes = list(cov.keys())
-        cost = {}
-        for hash in hashes:
-            hashCov = cov[hash] / timelineYCov[-1]
-            seedFreq = seed[hash] / sum(seed.values()) if seed[hash] != 0 else underflow_cost
-            pathFreq = path[hash] / sum(path.values()) if path[hash] != 0 else underflow_cost
-            # print(hashCov)
-            # print(seedFreq)
-            # print(pathFreq)
-            costHash = hashCov * np.log(pathFreq) * np.log(seedFreq)
-            cost[hash] = costHash
-        sorted_dict = self.peachMinset(cost)
-        selectedHash = list(sorted_dict.keys())[0]
-        print("sorted cost")
-        pprint(sorted_dict)
-        print("hash: " + selectedHash)
-        return selectedHash
+        selected_hash = np.random.choice(self.hashList)
+        print("selected hash "+str(selected_hash))
+        print("random selection choice")
+        return selected_hash
 
     def shannon_diversity(self, species):
         total = sum(species)
@@ -526,7 +505,7 @@ class Fuzzer:
         self,
         pwd: str,
         seedFolder: str,
-        defaultEpochs: int = 20,
+        isPSO = False,
         runGetAesInput=True,
         p=[1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8],
     ) -> None:
@@ -537,7 +516,6 @@ class Fuzzer:
         print()
         print("mutator p-distribution: " + str(self.selectorProbabilities))
         print()
-        self.defaultEpochs = defaultEpochs
         if runGetAesInput == True:
             self.runner = Runner(pwd)
             self.runner.getAesInputs(seedFolder)
@@ -548,6 +526,12 @@ class Fuzzer:
                 "runnr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
                 "any losses in results folder may be retrieved from runner dump"
             )
+        print("isPSO "+str(isPSO))
+        if isPSO:
+            self.alpha_i = 2
+            self.alpha_max = 100
+        print("alpha initial "+str(self.alpha_i))
+        print("alpha max "+str(self.alpha_max))
 
     def read_pso(self) -> list:
         # look for pso_results.txt in file
@@ -844,11 +828,8 @@ class Fuzzer:
 
         return
 
-    def mainLoop(self, epochs: int = None) -> None:
-        if epochs == None:
-            epochs = self.defaultEpochs
+    def mainLoop(self) -> None:
         currEpoch = 0
-        print("Epoches in total: " + str(epochs))
         self.initialiseSeedFreq()
         print("\n\n_______________________ new main loop")
 
@@ -866,14 +847,11 @@ class Fuzzer:
             currEpoch += 1
         return
 
-    def pso_fuzz(self, epochs: int = None):
-        if epochs == None:
-            epochs = self.defaultEpochs
+    def pso_fuzz(self, epochs: int):
         currEpoch = 0
         print("Epoches in total: " + str(epochs))
         self.initialiseSeedFreq()
-        print("\n\n_______________________ new main loop")
-
+        print("\n\n_______________________ new pso fuzz loop")
         for i in range(epochs):
             print("\n------------------ epoch " + str(currEpoch))
             pprint(self.seedFreq)
@@ -1093,12 +1071,11 @@ if __name__ == "__main__":
     print(pwd)
     makeResultsDir(pwd)
     import sys
-
     orig_stdout = sys.stdout
     f = open(f"./project_testing/python/plot_data/{dt_string}/LOGGER_{dt_string}.txt", "w")
     sys.stdout = f
 
-    coreFuzzer = Fuzzer(pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=True)
+    coreFuzzer = Fuzzer(pwd, seedFolder="./project_seed_q", runGetAesInput=True)
 
     coreFuzzer.timeline()
     start = time.time()
