@@ -637,9 +637,9 @@ class Fuzzer:
         newValue = random.choice(algoOptions)
         if newValue == "fail":
             newValue = getRandomString(random.randint(0, 8))
-        else:
-            newKey = getRandomString(random.randint(0,32))
-            output["key"] = output['key2'] = newKey
+        # else:
+        #     newKey = getRandomString(random.randint(0,32))
+        #     output["key"] = output['key2'] = newKey
         output["algo"] = newValue
         print("old dict 2" + str(input))
         print("new dict 2" + str(output))
