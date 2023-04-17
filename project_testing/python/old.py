@@ -301,18 +301,10 @@ class Runner:
     def getSeed(self,seedFreq:dict) -> int:
         # get random seed
         # hashind = random.randint(0, len(self.hashList) - 1)
-        print('GET SEED')
-        sorted_dict = self.peachMinset()
-        hash = list(sorted_dict.keys())[0]
-        freq = list(seedFreq.values())
-        ave = sum(freq)/len(freq)
-        currentIndex = 0
-        while seedFreq[hash] > ave:
-            currentIndex += 1
-            hash = list(sorted_dict.keys())[currentIndex]
-        print("SELECTED HASH SEED "+str(hash))
-        print(self.seedQDict)
-        return hash
+        selected_hash = np.random.choice(self.hashList)
+        print("selected hash "+str(selected_hash))
+        print("random selection choice")
+        return selected_hash
 
     def writeDiskSeedQ(self, isFail: bool, isCrash: bool, ids: str) -> bool:
         # this writes the seed txt file to the results folder
