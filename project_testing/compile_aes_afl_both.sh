@@ -2,7 +2,7 @@
 date
 pwd
 echo "compiling for afl..."
-if $HOME/AFL/afl-clang -I../include ./crypt_test.c -o crypt_test_afl ../library/*.c; then
+if $HOME/AFL/afl-clang ./crypt_test_afl.c -o crypt_test_afl -lmbedcrypto -lmbedtls; then
     echo Try cbc
     if ./crypt_test_afl ./plaintext_seed/plain.txt ./options_seed/cbc.txt; then 
         echo CBC completed;

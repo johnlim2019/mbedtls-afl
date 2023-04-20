@@ -7,5 +7,6 @@
     "stdlib.h": "c",
     "aes.h": "c",
     "arraylist.h": "c"
-}
+},
+"python.formatting.provider": "black"
 }
