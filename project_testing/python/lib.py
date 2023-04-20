@@ -16,7 +16,7 @@ from datetime import datetime
 
 # datetime object containing current date and time
 now = datetime.now()
- 
+
 print("now =", now)
 
 # dd/mm/YY H:M:S
@@ -301,7 +301,7 @@ class Runner:
             self.seed2Interesting[self.currentSeedHash] += 1
             # we also found a new seed so we add it to the seed2Interesting
             # if it is a new seed, if it is just the previous seed we dont want to overwrite it.
-            if (ids != self.currentSeedHash):
+            if ids != self.currentSeedHash:
                 self.seed2Interesting[ids] = 0
             # print("interesting path found")
             if isfail:
@@ -331,7 +331,7 @@ class Runner:
 
     def getSeedOld(self, seedFreq: dict, timelineYCov: list) -> int:
         selected_hash = np.random.choice(self.hashList)
-        print("selected hash "+str(selected_hash))
+        print("selected hash " + str(selected_hash))
         print("random selection choice")
         return selected_hash
 
@@ -484,12 +484,28 @@ class Fuzzer:
         "pollute": 0,
     }
     crashinput = {
-        "key": '\x08¢\x08`\x082L [\x0f\x1f  ¡   (()\x0bónN\x02\x03\x03    -    ;ó~~~#-\x8a\x83"äää333\xa06«xV \x1e \x13\x0f   \x86kr\x05\x06\x0622T\x86CCCU& Z `\x15\x15\x15\x8aj  c%6åÅå   )))\x17\x169<m$mÿ`A==  ! R\x1e!>\x0b0q m\x1dKL\x00LE\x89s\x7f\x7f\x7f ÔÔÔ4 ((!  Û;\r\x7f Z!\\Ó!!\x0b\x0b\x0c\x0b../.\x0f\x0f\x0f\x0f\x99 j²}ll\x91ë\'£\x00!\x7f \x83 \x01!!!jvA  ©\t)AA  \x99\x7f"""!=\x81"¤k\x84_wS    \x90\x1d\x1d\x1d\x81  øøQ! \x07Î\x87  \x84ssQ. .~   çh:ÑÑÑ\x0f  !\r_ð \x83\x83\x83\x83\x83  g½½!  %  \x01 \x1f   k kk --\\\\]',
-        "key2": '^\x1ey\x1e\x13cabhRt\x98>\x9e \x91\x91 .\x12G(G1\x9bf# 2\x89\x8a\x88 \x056 9" (\x1a\x0b \x1f"p8\x9d\x9d\x9d\x1f]! /»gh glÃ\x04g z\x1cfF3\x0e\x0e§§9Y\x18O\x1f  \x01 !\x14g?\x88\x0b%\x1f %8êêêêêttt r#Êuv  !\x13 YW5DD+D //Û/ 3 "aS\x1f#^VRRR!EÖ×ÔÔÀ!!6¢MºT\x9aí>ÝÝÝé(ìê@]\x1fNf\x1e\x1f¾b[\'H\'h êz)!!¿@ \\ äZ¦{«zs\x0b1 !¤Ûßr  . "k®h qo  t\x1e1 \x9c+ ììì#( :$p1\n0   }\tIH]!|||nnnBAfA\x14\x15\x15ÛÚ :Û()^^   \x1f7éJnò±V ñòó!,I&%ãââ\x1f\x1f" \x1f\x1f < Hölllìé ºs\x7f+cúú}}l@ fg+zH  3   Ø\x1d]!Ç 6   !$ Í$$',
-        "iv": '2 í  Z# \x00(#Y \'Y(`%))9)+IANäW8põ ok *` 5(¦ÃP\x049ð ¨   \x1f\x1f\x1f¥{?\x7f? ? -y\x1fppoEè èzzccc0 1006 ©©¹:"\x8d" \x1f  ---UU!! · > w_¼»uU¤  \x8d   !E\\\\\\5tEª,ÅÅÅ\x9bc#  #\x1f3\x0c!% #\x00  0 3be´  ¦ ¦v pwoGS \x06m\x1f\x1c\x1c\x1c\x9e\r\'\xad¬\xady!!!! ; \x1d\x86\x85\x0b\x0b2\x1f r«rr; @@@\x8c\x8c¡íî¶s!apÊ//\'/a6)*"     \x1f 4!¡¡¡j\tj99\t÷\x10aR\x1e\r/\t %o\x1d!  !5ðõ x ¬§Ää\x1fãp!# "\x7f@óK\x1b\x1c\x1a\t,,,,,\x1d( J  ª ªº`!@\x86ommm#"""fff $0`N \x1f.\x1fHH~~G\x1f\x1f\x1f',
-        "iv2": '®®\xad !\x1f""\x1f- \'#\x04$\x8a\x1f$\x86|\x07d\x17$ M\x9a\x1f\\Å\x1f\x1f  µ   T T\x1e=.\x8a!ì%%%\xa0\xa0\xa0\xa0$& \x89   ¼\r\n\\z\xad\x9c op+0.\x0c0\x11ÚÛ$ÛK`     ·mP l\x0bª\\\\\\\x1f\x1f\x1f   \x93 g!\x1b%kÁÁ\\\x1c\\\\!t"    \x0b\x912 6.mù\x1f\x1f\x1f |||\x17mAOOx1 6?6\x1700 0!0`ae vE - z\x0b  ^\x1féò òÌòó!\x01!  \x1eHB\x10l{{S\x92&PQT^^N_\x0e  \x814 \x1f\x1fö(^L "q 0    Q ^Q^¥¥xy 9L!\x8a \x9at PÍ  |}T~}¬ L¶    \r¦cab!LL6T Á!\x0b$$\x1euax`8\x01\x01\x11   P   !p2****\t\t*',
+        "key": '$ )\x01\x0b\x1f\x1f\x1e\x1f\x1e   "22 (',
+        "key2": 'ÅÅ21"!(\x0e\x0f\x0e',
+        "iv": "H'",
+        "iv2": "\x1f\x19",
         "algo": "CFB128",
-        "plain": '\x9f\x9f\x9f\x0ed # N\x85~øü\x0fü5G\x1fOÓ\x998 4\x9f  b cb \x0c \t\x01\x02\x010!!\x06!!!"\x1f\x1f þ·ý àÆ\x0eWÍ°RE*$ \x1f\x02_e£c\x07  HHH0?!@!` \\  ÿÿ321j©\x1f2999\x9bL2 UkÆÎÞ!"! ~Avvv \x1f!\x1f     \x1fS\x1f{\x12F 9>nnn~!,\x7f! WUV\x1f"m)  a \x1c \x1e"# I\x02V!(^]<_ÖØ !\x17\x19E 4òYYY\x1b \x1f-&&   \x1e@i\x1c~    $o  ¡¡8xxx\x1f¯d\x02\x02\x01\x8e\x7f}\\Y!Ü\x1f G \x1d  @ \x99ýý\t\x0f.ðððõy[(%$\x1f\x1f\x1f\x1f\x0e\x0e\x1f  4 \x9b1`¥A¶¶\x96\x94!\x1f!D (\x02~~\x1e\x1f> ]  \x839 =xD}!4 WÏ h\x0c\x0c\x0cv fÌ,\x90Â\x0b}~weJJKô-11wB ÐÏÏ\x83\x85\x85\x85Ck!\x85!\x96)%\x93\x94  y !!  h \x1f  (((qqq\x1e\x0e !e~? .\x1f y>g\x90\x90°x\x17XXX\x80\r\x80ã CUXXX(Ò6+ààà$e=3q (n( L KKS7N¨?^!pppss ',
+        "plain": " Ô####b\x0c\x80`_<<<<\x1e\x81\x7f",
+    }
+    crashinput2 = {
+        "key": "!xx___",
+        "key2": "",
+        "iv": "\x1f  H",
+        "iv2": '"!',
+        "algo": "CFB128",
+        "plain": '\x1f\x1f\x1f!!  & %dd$!!dfdf5!4v\x7fy/x\x0eMMMMA)!!!!\x1fTTTdU"U7$(\x1f$75$71. &CCC!!\x01_^ml.    ¬222',
+    }
+    crashinput3 = {
+        "key": "% \x05\x16\x1e\x1e!! ",
+        "key2": "hhh\x17e1 01@8\x0f )\x1fØ",
+        "iv": '1"  "#""  0',
+        "iv2": "xhxxx $$ $",
+        "algo": "CBC",
+        "plain": "ccclÁZ·····u\x85\x95\x95)))\x1f )\x7fx",
     }
     normalinput = {
         "key": "itzkbg2",
@@ -505,7 +521,7 @@ class Fuzzer:
         self,
         pwd: str,
         seedFolder: str,
-        isPSO = False,
+        isPSO=False,
         runGetAesInput=True,
         p=[1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8],
     ) -> None:
@@ -526,12 +542,11 @@ class Fuzzer:
                 "runnr object attribute is set to None, please use loadRunner() to load a serialised runner object instance"
                 "any losses in results folder may be retrieved from runner dump"
             )
-        print("isPSO "+str(isPSO))
+        print("isPSO " + str(isPSO))
         if isPSO:
             self.alpha_i = 2
-            self.alpha_max = 100
-        print("alpha initial "+str(self.alpha_i))
-        print("alpha max "+str(self.alpha_max))
+        print("alpha initial " + str(self.alpha_i))
+        print("alpha max " + str(self.alpha_max))
 
     def read_pso(self) -> list:
         # look for pso_results.txt in file
@@ -944,7 +959,7 @@ class Fuzzer:
             self.runner.crashPathHashLs,
             self.runner.seedQCov,
             self.seedFreq,
-            self.runner.seed2Interesting
+            self.runner.seed2Interesting,
         ]
         os.chdir(self.pwd)
         try:

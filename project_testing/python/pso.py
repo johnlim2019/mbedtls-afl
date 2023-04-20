@@ -70,8 +70,8 @@ class PSO:
         for t in range(self.generation):
         # Stop if the average fitness value reacpyted a predefined success criterion
             print("Current Generation: " + str(t))
+            print("Best Selection is " + str(normalize(pso.gbest_position)))
             for n in range(self.population):
-                print("Best Selection is " + str(normalize(pso.gbest_position)))
                 # Update the velocity of each particle
 
                 velocity[n] = self.update_velocity(particles[n], velocity[n], pbest_position[n], self.gbest_position)

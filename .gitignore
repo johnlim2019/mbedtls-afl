@@ -69,7 +69,7 @@ massif-*
 /project_testing/testbed
 /project_testing/test_d
 /project_testing/test_d_afl
-/project_testing/python/*.txt
+/project_testing/python/seed.txt
 /project_testing/*.pkl
 /project_testing/python/results/*
 /project_testing/python/*.png
@@ -77,3 +77,5 @@ massif-*
 LOGGER.txt
 /project_testing/crypt_test
 /project_testing/*.c.gcov
+/project_testing/python/plot_data
+PSOLOGGER.txt

@@ -1,11 +1,12 @@
 import os
 import pickle
 import pandas as pd
+from pprint import pprint 
+import lib
+import time
 
 
 def getSnapshotCsv(dumpfile:str):
-    pwd = os.path.dirname(os.path.abspath("LICENSE"))+"/project_testing"
-    os.chdir(pwd)
     with open(dumpfile, "rb") as f:
         inputs = pickle.load(f)
     hashList: list = inputs[0]
@@ -17,7 +18,7 @@ def getSnapshotCsv(dumpfile:str):
     seedQCov: dict = inputs[6]
     seedFreq: dict = inputs[7]
     interestingFreq = inputs[8]
-    # pprint.pprint(pathQDict)
+    pprint(len(list(pathQDict.values())[0]))
     seedQLs = []
     pathQLs = []
     pathFrequencyLs = []
@@ -45,7 +46,7 @@ def getSnapshotCsv(dumpfile:str):
         seedQLs,pathFrequencyLs,seedCovLs,seedFreqLs,isFail,isCrash,seedInteresting
     ])
     df = df.transpose()
-    print(hashList)
+    # print(hashList)
 
     df.columns = [
         "Seed Input",
@@ -59,16 +60,19 @@ def getSnapshotCsv(dumpfile:str):
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
 
-getSnapshotCsv("python/dumpCrash.pkl")
 
+pwd = os.path.dirname(os.path.abspath("LICENSE")) + "/project_testing"
+print(pwd)
+lib.makeResultsDir(pwd)
 
-# import lib
-# cis = {'key': '4zkB]ÕcrrJl taPg !', 'key2': '!qrr j bcvtr - c jl!n¥vf ««', 'iv': '2~1 x32 5 u', 'iv2': '\x1f 1\x11~\x19f 5:[80eR\x893 95', 'algo': 'CFB128', 'plain': 'bbcde fgh hkdl+oÒpqsssuvw xy zABCD%EwGHIJ4 LNNPRRSTUVWXYZ1234567890jñ!@#$(\'^%*  \x8a()_---~[\\ \\\\\',./{~|:;<"""023'}
-# os.chdir(pwd)
-# # orig_stdout = sys.stdout
-# # f = open("LOGGER.txt", "w")
-# # sys.stdout = f
-# coreFuzzer = lib.Fuzzer(
-#     pwd, seedFolder="./project_seed_q", defaultEpochs=2, runGetAesInput=False
-# )
-# print(coreFuzzer.runner.runTest(cis))
+coreFuzzer = lib.Fuzzer(pwd, seedFolder="./project_seed_q", runGetAesInput=True)
+hash = coreFuzzer.runner.hashList[0]
+coreFuzzer.currSeed = coreFuzzer.runner.seedQDict[hash]
+print(coreFuzzer.currSeed)
+start = time.time()
+for i in range(1000):
+    coreFuzzer.fuzzInput()
+end = time.time()
+timetaken = end - start
+print("time taken "+str(timetaken)+"s")
+print("exit")
