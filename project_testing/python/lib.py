@@ -22,6 +22,7 @@ print("now =", now)
 # dd/mm/YY H:M:S
 dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 
+
 def getRandomString(length):
     # choose from all lowercase letter
     letters = string.printable
@@ -484,12 +485,12 @@ class Fuzzer:
         "pollute": 0,
     }
     crashinput = {
-        "key": '$ )\x01\x0b\x1f\x1f\x1e\x1f\x1e   "22 (',
-        "key2": 'ÅÅ21"!(\x0e\x0f\x0e',
-        "iv": "H'",
-        "iv2": "\x1f\x19",
-        "algo": "CFB128",
-        "plain": " Ô####b\x0c\x80`_<<<<\x1e\x81\x7f",
+        "key": " yyyaa! \x1f-\x1fx \x95Ád",
+        "key2": "m'    sssvvvv",
+        "iv": " \x00\x00\x00- -",
+        "iv2": " q`q¥\x1b\x18 ;",
+        "algo": "",
+        "plain": 'acdddghjj jllppqstuvwxyz   DDDFHHKKLMFOP QSSTU_\x1fY1\x111357999@# %^&(^_`-=~[]Tb:+./{}}} |:><>"26',
     }
     crashinput2 = {
         "key": "!xx___",
@@ -1019,7 +1020,7 @@ def makeResultsDir(pwd: str) -> bool:
     return True
 
 
-def getSnapshotCsv(dumpfile: str):
+def getSnapshotCsv(dumpfile: str, pwd: str):
     os.chdir(pwd)
     with open(dumpfile, "rb") as f:
         inputs = pickle.load(f)
@@ -1031,7 +1032,7 @@ def getSnapshotCsv(dumpfile: str):
     crashPathHashLs: list = inputs[5]
     seedQCov: dict = inputs[6]
     seedFreq: dict = inputs[7]
-    pprint.pprint(pathQDict)
+    seed2Interesting:dict = inputs[8]
     seedQLs = []
     pathQLs = []
     pathFrequencyLs = []
@@ -1039,12 +1040,14 @@ def getSnapshotCsv(dumpfile: str):
     seedFreqLs = []
     isFail = []
     isCrash = []
+    seed2InterestingLs =[]
     for i in hashList:
         seedQLs.append(seedQDict[i])
         pathQLs.append(pathQDict[i])
         pathFrequencyLs.append(pathFrequency[i])
         seedCovLs.append(seedQCov[i])
         seedFreqLs.append(seedFreq[i])
+        seed2InterestingLs.append(seed2Interesting[i])
         if i in failedPathHashLs:
             isFail.append(True)
         else:
@@ -1053,7 +1056,7 @@ def getSnapshotCsv(dumpfile: str):
             isCrash.append(True)
         else:
             isCrash.append(False)
-    df = pd.DataFrame([seedQLs, pathFrequencyLs, seedCovLs, seedFreqLs, isFail, isCrash])
+    df = pd.DataFrame([seedQLs, pathFrequencyLs, seedCovLs, seedFreqLs, isFail, isCrash,seed2InterestingLs])
     df = df.transpose()
     print(df.shape)
     df.columns = [
@@ -1063,10 +1066,12 @@ def getSnapshotCsv(dumpfile: str):
         "Seed Frequency",
         "Fail Path",
         "Crash Path",
-        "Total Code Coverage",
+        "seed2Interesting"
     ]
     df.index = hashList
     df.to_csv("python/dumpCrashBreakdown.csv")
+
+    return seedQDict
 
 
 def every(delay, task):
@@ -1086,6 +1091,7 @@ if __name__ == "__main__":
     print(pwd)
     makeResultsDir(pwd)
     import sys
+
     orig_stdout = sys.stdout
     f = open(f"./project_testing/python/plot_data/{dt_string}/LOGGER_{dt_string}.txt", "w")
     sys.stdout = f

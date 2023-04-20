@@ -1,0 +1,198 @@
+---------------------
+bug 11
+
+Started main function
+Reading options file at ./bugs/bug_11.txt
+acdddghjj jllppqstuvwxyz   DDDFHHKKLMFOP QSSTU_Y11357999@# %^&(^_`-=~[]Tb:+./{}}} |:><>"26
+
+ yyyaa! -x Ád
+m'    sssvuv
+ 
+exiting reading of file block
+Plain: acdddghjj jllppqstuvwxyz   DDDFHHKKLMFOP QSSTU_Y11357999@# %^&(^_`-=~[]Tb:+./{}}} |:><>"26 
+Plaintext size: 92
+Cipher:  yyyaa! -x Ád
+Key: m'    sssvuv
+Keysize: 13
+Key2:  
+Keysize: 1
+./gcov_aes.sh: line 8:  4604 Segmentation fault: 11  ./crypt_test ./bugs/bug_11.txt
+139
+
+---------------------
+bug 14
+
+Started main function
+Reading options file at ./bugs/bug_14.txt
+c! cdd E!eeenmm444uvyyBMEEBCIJ !!! N @@QT (4446572.##ABB !!^^^^px000 Þ000098 
+CBC
+"!1
+!! ! !
+ !!!0
+A A@ò
+exiting reading of file block
+Plain: c! cdd E!eeenmm444uvyyBMEEBCIJ !!! N @@QT (4446572.##ABB !!^^^^px000 Þ000098  
+Plaintext size: 80
+Cipher: CBC
+Key: "!1
+Keysize: 4
+Key2: !! ! !
+Keysize: 7
+IV:  !!!0
+vSize: 10
+
+IV2: SA A@ò
+ivSize: 7
+
+aes_cbc()
+Ciphertext: |���Y�s/��B/�Z_�O*�C���wf}�RԒ��K�x؇-*6o��H*L����ܱ�nA�:�.
+    7�
+      ���V�
+Deciphered: 
+��G�V�Gq��*����B���Zs#1�(�+��p/��F��$����(V������34��+���<���l��w��&
+error
+Expected: c! cdd E!eeenmm444uvyyBMEEBCIJ !!! N @@QT (4446572.##ABB !!^^^^px000 Þ000098 
+Actual: 
+��G�V�Gq��*����B���Zs#1�(�+��p/��F��$����(V������34��+���<���l��w��&
+1
+
+---------------------
+bug 15
+
+Started main function
+Reading options file at ./bugs/bug_15.txt
+!!  & %dd$!!dfdf5!4vy/xMMMMA)!!!!TTTdU"U7$($75$71. &CCC!!_^ml.    ¬222
+CFB128
+!xx___
+
+  H
+"!"
+exiting reading of file block
+Plain: !!  & %dd$!!dfdf5!4vy/xMMMMA)!!!!TTTdU"U7$($75$71. &CCC!!_^ml.    ¬222 
+Plaintext size: 79
+Cipher: CFB128
+Key: !xx___
+Keysize: 6
+Key2:   H
+Keysize: 4
+IV: "!"
+ivSize: 3
+
+./gcov_aes.sh: line 18:  4606 Segmentation fault: 11  ./crypt_test ./bugs/bug_15.txt
+139
+
+---------------------
+bug 16
+
+Started main function
+Reading options file at ./bugs/bug_16.txt
+acdddghjj jllppqstuvwxyz   DDDFHHKKLMFOP QSSTU_Y11357999@# %^&(^_`-=~[]Tb:+./{}}} |:><>"26
+
+ yyyaa! -x Ád
+m'    sssvvvv
+ 
+exiting reading of file block
+Plain: acdddghjj jllppqstuvwxyz   DDDFHHKKLMFOP QSSTU_Y11357999@# %^&(^_`-=~[]Tb:+./{}}} |:><>"26 
+Plaintext size: 92
+Cipher:  yyyaa! -x Ád
+Key: m'    sssvvvv
+Keysize: 13
+Key2:  
+Keysize: 1
+./gcov_aes.sh: line 23:  4607 Segmentation fault: 11  ./crypt_test ./bugs/bug_16.txt
+139
+
+---------------------
+bug 17
+
+Started main function
+Reading options file at ./bugs/bug_17.txt
+!!  & %dd$!!dfdf5!4vy/xMMMMA)!!!!TTTdU"U7$($75$71. &CCC!!_^ml.    ¬222
+CFB128
+!xx___
+
+  H
+"!
+exiting reading of file block
+Plain: !!  & %dd$!!dfdf5!4vy/xMMMMA)!!!!TTTdU"U7$($75$71. &CCC!!_^ml.    ¬222 
+Plaintext size: 79
+Cipher: CFB128
+Key: !xx___
+Keysize: 6
+Key2:   H
+Keysize: 4
+IV: "!
+ivSize: 2
+
+./gcov_aes.sh: line 28:  4608 Segmentation fault: 11  ./crypt_test ./bugs/bug_17.txt
+139
+
+---------------------
+bug 18
+
+Started main function
+Reading options file at ./bugs/bug_18.txt
+ccclÁZ·····u
+))) )x
+CBC
+% !! 
+hhhe1 01@8 )Ø
+1"  "#""  0
+xhxxx $$ $
+exiting reading of file block
+Plain: ccclÁZ·····u
+))) )x 
+Plaintext size: 32
+Cipher: CBC
+Key: % !! 
+Keysize: 9
+Key2: hhhe1 01@8 )Ø
+Keysize: 17
+IV: 1"  "#""  0
+ivSize: 11
+
+IV2: xhxxx $$ $
+ivSize: 10
+
+aes_cbc()
+Ciphertext: �ZFJ���H#7 �����1�����ϵl���
+Deciphered: <�U
+C�:���z�Uog���
+              !���U�~
+error
+Expected: ccclÁZ·····u
+))) )x
+Actual: <�U
+C�:���z�Uog���
+              !���U�~
+1
+---------------------
+bug 10
+
+Started main function
+Reading options file at ./bugs/bug_10.txt
+abdddfghjj jlmmppqstuvwxyzA BDDEFHHHJKLMFOPQSSTUVXY1113357=9!@# %^&*(^__-=~[]\b;,./{­} |:><>"27
+CBC
+iy~x~a5mØkdue
+N' !44Bub/3 rvu
+9x.
+111005< I8
+exiting reading of file block
+Plain: abdddfghjj jlmmppqstuvwxyzA BDDEFHHHJKLMFOPQSSTUVXY1113357=9!@# %^&*(^__-=~[]\b;,./{­} |:><>"27 
+Plaintext size: 96gi
+Cipher: CBC
+Key: iy~x~a5mØkdue
+Keysize: 14
+Key2: N' !44Bub/3 rvu
+Keysize: 15
+IV: 9x.
+ivSize: 3
+
+IV2: 111005< I8
+ivSize: 12
+
+aes_cbc()
+Ciphertext: ]!
+              ������+[@�Y,_k_�u�w{���\� �
+Failed to decrypt
+1

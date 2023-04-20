@@ -347,8 +347,9 @@ int main(int argc, char *argv[])
     printf("Plain: %s \nPlaintext size: %d\n", text, (int)numBytes);
     printf("Cipher: %s\n", cipher);
     printf("Key: %s\nKeysize: %d\n", key, (int)strlen(key));
+    printf("Key2: %s\nKeysize: %d\n", key2, (int)strlen(key2));
     printf("IV: %s\nivSize: %d\n\n", iv, (int)strlen(iv));
-    printf("IV2: %s\nivSize: %d\n\n", iv2, (int)strlen(iv));
+    printf("IV2: %s\nivSize: %d\n\n", iv2, (int)strlen(iv2));
 
     if (strcmp(cipher, "CBC") == 0)
     {

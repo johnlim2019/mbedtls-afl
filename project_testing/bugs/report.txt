@@ -1,0 +1,50 @@
+bug_1
+Binary Execution Exit code: 0
+
+bug_2
+Binary Execution Exit code: 0
+
+bug_3
+Binary Execution Exit code: 0
+
+bug_4
+Binary Execution Exit code: 1
+
+bug_5
+Binary Execution Exit code: 1
+
+bug_6
+Binary Execution Exit code: 1
+
+bug_7
+Binary Execution Exit code: 1
+
+bug_8
+Binary Execution Exit code: 1
+
+bug_9
+Binary Execution Exit code: 0
+
+bug_10
+Binary Execution Exit code: 1
+
+bug_11
+Binary Execution Exit code: -11
+runtime Program crash no path generated
+
+bug_12
+Binary Execution Exit code: 1
+
+bug_13
+Binary Execution Exit code: 1
+
+bug_14
+crypt_test(62734,0x1f7a09b40) malloc: Incorrect checksum for freed object 0x14a606950: probably modified after being freed.
+Corrupt value: 0x9405569885f8
+crypt_test(62734,0x1f7a09b40) malloc: *** set a breakpoint in malloc_error_break to debug
+Binary Execution Exit code: -6
+runtime Program crash no path generated
+
+bug_15
+Binary Execution Exit code: -10
+runtime Program crash no path generated
