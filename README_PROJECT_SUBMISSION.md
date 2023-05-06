@@ -1,7 +1,11 @@
 ## Set up 
+Install mbedtls library 
 
-Although the mbedtls is part of the repo, please install the mbedtls library separately, as we ended up using either the homebrew or ubuntu repos to compile mbedtls. Our script will use the library package to compile instead from the version from the repo.
+Ubuntu 
+`sudo apt install libmbedtls-dev`
 
+MacOS
+`brew install mbedtls`
 
 ## Files
 Main files are in `project_testing` folder. 
@@ -38,3 +42,6 @@ Commands
 python3 project_testing/python/lib.py
 python3 project_testing/python/pso.py
 ```
+
+Note 
+That when using MacOS and Ubuntu, the gcov is known generate different number of executable lines and result in different number total code coverage. 
